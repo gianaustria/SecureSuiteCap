@@ -1,0 +1,46 @@
+{% extends "app/layout.html" %}
+
+{% block content %}
+
+{% load static %}
+
+
+<div class="jumbotron" style="background-color:#9ee3f2">
+    <h1>SecureSuite</h1>
+    <p class="lead">SecureSuite is a tool to detect any malicious activties from your files, websites or emails.</p>
+    <p><a href="{% url 'home' %}" class="btn btn-primary btn-large">Get Started &raquo;</a></p>
+</div>
+<div class="row">
+    <div class="col-md-4">
+        <div class="card" style=" height: 400px">
+            <img class="card-img-top" src="../../static/app/images/email.png" alt="Card image cap" style="max-height: 200px; object-fit: contain;">
+            <div class="card-body">
+                <h3 class="card-title" style="font-weight:bold">Email Analyzer</h3>
+                <p class="card-text">A clever shield to scan your emails for sneaky malware.</p>
+                <a href="{% url 'email_analyzer' %}" class="btn btn-primary">Start Now</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card" style=" height: 400px">
+            <img class="card-img-top" src="../../static/app/images/file.png" alt="Card image cap" style="max-height: 200px; object-fit: contain;">
+            <div class="card-body">
+                <h3 class="card-title" style="font-weight:bold">File Checker</h3>
+                <p class="card-text">An intelligent guard to verify your files against tampering.</p>
+                <a href="{% url 'file_integrity_checker' %}" class="btn btn-primary">Learn Now</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card" style=" height: 400px">
+            <img class="card-img-top" src="../../static/app/images/online.png" alt="Card image cap" style="max-height: 200px; object-fit: contain;">
+            <div class="card-body">
+                <h3 class="card-title" style="font-weight:bold">Website Checker</h3>
+                <p class="card-text">A smart way to check your website for hidden malicious threats.</p>
+                <a href="{% url 'website_checker' %}" class="btn btn-primary">Check Now</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

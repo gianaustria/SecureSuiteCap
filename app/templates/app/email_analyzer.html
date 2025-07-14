@@ -1,0 +1,121 @@
+{% extends 'app/layout.html' %}
+
+{% block title %}Scan Email Checker{% endblock %}
+
+
+{% block content %}
+<style>
+    .center-wrapper {
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        min-height: 80vh;
+        padding: 2rem 0;
+    }
+
+    .analyzer-box {
+        background: #ffffff;
+        padding: 2rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        width: 100%;
+        max-width: 650px;
+    }
+
+    .section-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        margin-top: 1.5rem;
+        margin-bottom: 1rem;
+        color: #343a40;
+    }
+
+    .message {
+        background-color: #e6f4ea;
+        color: #333;
+        padding: 0.75rem;
+        border-left: 5px solid #28a745;
+        margin-bottom: 1.5rem;
+        border-radius: 4px;
+    }
+
+    .btn-primary, .btn-success {
+        border-radius: 6px;
+        padding: 0.5rem 1.5rem;
+        margin-top: 1rem; /* Added for consistent button spacing */
+    }
+
+    .btn-primary {
+        background-color: #007bff;
+        border-color: #007bff;
+    }
+
+    .btn-success {
+        background-color: #28a745;
+        border-color: #28a745;
+    }
+
+    .form-control {
+        border-radius: 6px;
+        border: 1px solid #ced4da;
+    }
+
+        .form-control:focus {
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+            border-color: #007bff;
+        }
+
+    .form-group {
+        margin-bottom: 1.5rem; /* Consistent spacing for form groups */
+    }
+
+    @media (max-width: 576px) {
+        .analyzer-box {
+            padding: 1.5rem;
+        }
+
+        .section-title {
+            font-size: 1.1rem;
+        }
+    }
+</style>
+
+<div class="center-wrapper">
+    <div class="analyzer-box">
+        <h1 class="mb-4 text-center text-dark fw-bold">Scan Email Checker</h1>
+
+        {% if messages %}
+        <div class="alert alert-success" role="alert">
+            {% for message in messages %}
+            <div class="message">{{ message }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <form method="POST" action="/scan" enctype="multipart/form-data">
+            {% csrf_token %}
+            <p class="section-title">Upload a Single .eml File</p>
+            <div class="form-group">
+                <input type="file" class="form-control" name="email_file" accept=".eml" required />
+                <div class="form-text">Select a single .eml file to scan for security issues.</div>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Scan Single Email</button>
+        </form>
+
+        <form method="POST" action="/batch" enctype="multipart/form-data" class="mt-4">
+            {% csrf_token %}
+            <p class="section-title">Upload Multiple .eml Files (Batch)</p>
+            <div class="form-group">
+                <input type="file" class="form-control" name="email_files" accept=".eml" multiple required />
+                <div class="form-text">Select multiple .eml files for batch scanning.</div>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Scan Batch Emails</button>
+        </form>
+
+        <form action="/download" method="GET" class="mt-4">
+            <p class="section-title">Download Latest Scan Result</p>
+            <button class="btn btn-success w-100">Download Report</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

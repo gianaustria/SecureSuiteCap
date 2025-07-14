@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36212.18 d17.14
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "SecureSuiteCap", "SecureSuiteCap.pyproj", "{39BF94A5-94EB-47E1-9E50-F3570E848C89}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{39BF94A5-94EB-47E1-9E50-F3570E848C89}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{39BF94A5-94EB-47E1-9E50-F3570E848C89}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{39BF94A5-94EB-47E1-9E50-F3570E848C89}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{39BF94A5-94EB-47E1-9E50-F3570E848C89}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {C8523CB8-9FB3-41E3-B533-65A3C1B36AF7}
+	EndGlobalSection
+EndGlobal

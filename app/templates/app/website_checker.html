@@ -1,0 +1,98 @@
+{% extends 'app/layout.html' %}
+{% block content %}
+<div class="container mt-5">
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h2 class="card-title mb-4 text-primary">Website Security Checker</h2>
+
+            <div class="mb-4">
+                <label for="url" class="form-label fw-bold">Target URL</label>
+                <div class="input-group">
+                    <input type="text" class="form-control" id="url" placeholder="example.com" aria-describedby="urlHelp">
+                    <button class="btn btn-primary" onclick="checkAvailability()">Check Availability</button>
+                </div>
+                <div id="urlHelp" class="form-text">Enter a valid website URL (e.g., example.com)</div>
+                <span id="checkResult" class="text-danger mt-2 d-block"></span>
+            </div>
+
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <h5 class="mb-3">Homepage Test</h5>
+                    <button class="btn btn-outline-secondary w-100 mb-2" onclick="runHomepageTest()">Run Test</button>
+                    <textarea class="form-control" id="homepageOutput" rows="6" readonly></textarea>
+                </div>
+
+                <div class="col-md-6">
+                    <h5 class="mb-3">Ping Test</h5>
+                    <button class="btn btn-outline-secondary w-100 mb-2" onclick="runPingTest()">Run Test</button>
+                    <textarea class="form-control" id="pingOutput" rows="6" readonly></textarea>
+                </div>
+
+                <div class="col-md-6">
+                    <h5 class="mb-3">Traceroute Test</h5>
+                    <button class="btn btn-outline-secondary w-100 mb-2" onclick="runTracerouteTest()">Run Test</button>
+                    <textarea class="form-control" id="tracerouteOutput" rows="6" readonly></textarea>
+                </div>
+
+                <div class="col-md-6">
+                    <h5 class="mb-3">DNS Security Check</h5>
+                    <button class="btn btn-outline-secondary w-100 mb-2" onclick="runDnsCheck()">Run Test</button>
+                    <textarea class="form-control" id="dnsOutput" rows="6" readonly></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .container {
+        max-width: 1200px;
+    }
+
+    .card {
+        border-radius: 10px;
+        border: none;
+    }
+
+    .card-title {
+        font-size: 1.8rem;
+        font-weight: 600;
+    }
+
+    .form-control {
+        border-radius: 6px;
+    }
+
+    .btn {
+        border-radius: 6px;
+        padding: 8px 20px;
+    }
+
+    .btn-primary {
+        background-color: #007bff;
+        border-color: #007bff;
+    }
+
+    .btn-outline-secondary {
+        border-color: #6c757d;
+    }
+
+        .btn-outline-secondary:hover {
+            background-color: #6c757d;
+            color: white;
+        }
+
+    textarea.form-control {
+        background-color: #f8f9fa;
+        resize: none;
+    }
+
+    .text-danger {
+        font-size: 0.9rem;
+    }
+</style>
+
+<script>
+    // keep all your JavaScript from the original file here
+</script>
+{% endblock %}
