@@ -92,7 +92,156 @@
     }
 </style>
 
+{% endblock %}
+
+{% block scripts %}
 <script>
-    // keep all your JavaScript from the original file here
+    // Get CSRF token for AJAX POST requests
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // Check Availability function
+    async function checkAvailability() {
+        const urlInput = document.getElementById('url').value;
+        const resultElement = document.getElementById('checkResult');
+
+        if (!urlInput) {
+            resultElement.textContent = 'Error: Please enter a URL';
+            return;
+        }
+
+        try {
+            const response = await fetch('/check/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({ url: urlInput })
+            });
+            const data = await response.json();
+            resultElement.textContent = data.result;
+            resultElement.className = data.result.includes('Error') ? 'text-danger mt-2 d-block' : 'text-success mt-2 d-block';
+        } catch (error) {
+            resultElement.textContent = `Error: ${error.message}`;
+            resultElement.className = 'text-danger mt-2 d-block';
+        }
+    }
+
+    // Homepage Test function
+    async function runHomepageTest() {
+        const urlInput = document.getElementById('url').value;
+        const outputElement = document.getElementById('homepageOutput');
+
+        if (!urlInput) {
+            outputElement.value = 'Error: Please enter a URL';
+            return;
+        }
+
+        try {
+            const response = await fetch('/homepage/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({ url: urlInput })
+            });
+            const data = await response.json();
+            outputElement.value = data.result;
+        } catch (error) {
+            outputElement.value = `Error: ${error.message}`;
+        }
+    }
+
+    // Ping Test function
+    async function runPingTest() {
+        const urlInput = document.getElementById('url').value;
+        const outputElement = document.getElementById('pingOutput');
+
+        if (!urlInput) {
+            outputElement.value = 'Error: Please enter a URL';
+            return;
+        }
+
+        try {
+            const response = await fetch('/ping/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({ url: urlInput })
+            });
+            const data = await response.json();
+            outputElement.value = data.result;
+        } catch (error) {
+            outputElement.value = `Error: ${error.message}`;
+        }
+    }
+
+    // Traceroute Test function
+    async function runTracerouteTest() {
+        const urlInput = document.getElementById('url').value;
+        const outputElement = document.getElementById('tracerouteOutput');
+
+        if (!urlInput) {
+            outputElement.value = 'Error: Please enter a URL';
+            return;
+        }
+
+        try {
+            const response = await fetch('/traceroute/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({ url: urlInput })
+            });
+            const data = await response.json();
+            outputElement.value = data.result;
+        } catch (error) {
+            outputElement.value = `Error: ${error.message}`;
+        }
+    }
+
+    // DNS Security Check function
+    async function runDnsCheck() {
+        const urlInput = document.getElementById('url').value;
+        const outputElement = document.getElementById('dnsOutput');
+
+        if (!urlInput) {
+            outputElement.value = 'Error: Please enter a URL';
+            return;
+        }
+
+        try {
+            const response = await fetch('/dns/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({ url: urlInput })
+            });
+            const data = await response.json();
+            outputElement.value = data.result;
+        } catch (error) {
+            outputElement.value = `Error: ${error.message}`;
+        }
+    }
 </script>
 {% endblock %}

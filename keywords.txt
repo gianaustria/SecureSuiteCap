@@ -1,0 +1,12 @@
+[High Risk]
+urgent
+account suspended
+verify now
+[Medium Risk]
+login
+password
+update
+[Low Risk]
+free
+offer
+discount

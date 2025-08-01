@@ -1,0 +1,7 @@
+
+<div>
+    <label><input type="checkbox" name="Malicious" {% if 'Malicious' in policies %}checked{% endif %}> Malicious</label><br>
+    <label><input type="checkbox" name="Suspicious" {% if 'Suspicious' in policies %}checked{% endif %}> Suspicious</label><br>
+    <label><input type="checkbox" name="Harmless" {% if 'Harmless' in policies %}checked{% endif %}> Harmless</label><br>
+    <button type="submit" class="btn btn-primary mt-2">Update Policies</button>
+</div>

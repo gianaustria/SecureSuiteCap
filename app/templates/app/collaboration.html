@@ -1,0 +1,11 @@
+
+<div class="space-y-4">
+    {% for message in messages %}
+    <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 shadow-sm">
+        <span class="text-gray-800">{{ message.message }}</span>
+        <span class="text-gray-500 block text-sm">({{ message.timestamp }})</span>
+    </div>
+    {% empty %}
+    <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 shadow-sm text-gray-600">No collaboration messages.</div>
+    {% endfor %}
+</div>

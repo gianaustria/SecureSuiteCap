@@ -1,0 +1,16 @@
+
+<div class="space-y-4">
+    {% for log in logs %}
+    <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 shadow-sm">
+        <strong class="text-lg font-medium text-gray-800">{{ log.filename }}</strong> - {{ log.status }} <span class="text-gray-500">({{ log.timestamp }})</span>
+        <br>
+        <span class="text-gray-600">Size: {{ log.stats.size }} bytes, Type: {{ log.stats.type }}</span>
+        {% if log.stats.malware_status %}
+        <br>
+        <span class="text-gray-600">Malware Status: <span class="{% if 'Malicious' in log.stats.malware_status %}text-red-600{% else %}text-green-600{% endif %}">{{ log.stats.malware_status }}</span></span>
+        {% endif %}
+    </div>
+    {% empty %}
+    <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 shadow-sm text-gray-600">No logs available.</div>
+    {% endfor %}
+</div>

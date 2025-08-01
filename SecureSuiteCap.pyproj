@@ -34,6 +34,9 @@
   <ItemGroup>
     <Compile Include="app\forms.py" />
     <Compile Include="app\models.py" />
+    <Compile Include="app\templates\app\templatetags\filters.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="app\tests.py" />
     <Compile Include="app\utils.py">
       <SubType>Code</SubType>
@@ -56,8 +59,10 @@
     <Folder Include="app\static\app\fonts\" />
     <Folder Include="app\static\app\images\" />
     <Folder Include="app\static\app\scripts\" />
+    <Folder Include="app\static\js\" />
     <Folder Include="app\templates\" />
     <Folder Include="app\templates\app\" />
+    <Folder Include="app\templates\app\templatetags\" />
     <Folder Include="app\templates\app\partials\" />
     <Folder Include="uploads\" />
     <Folder Include="SecureSuiteCap\" />
@@ -66,10 +71,17 @@
     <Content Include="app\static\app\images\email.png" />
     <Content Include="app\static\app\images\file.png" />
     <Content Include="app\static\app\images\online.png" />
+    <Content Include="app\static\app\scripts\scripts.js" />
+    <Content Include="app\templates\app\collaboration.html" />
     <Content Include="app\templates\app\email_analyzer.html" />
     <Content Include="app\templates\app\file_integrity_checker.html" />
+    <Content Include="app\templates\app\logs.html" />
     <Content Include="app\templates\app\partials\visualizations_partial.html" />
+    <Content Include="app\templates\app\policies.html" />
+    <Content Include="app\templates\app\virtualization.html" />
     <Content Include="app\templates\app\website_checker.html" />
+    <Content Include="keywords.txt" />
+    <Content Include="readme - Copy.txt" />
     <Content Include="requirements.txt" />
     <Content Include="db.sqlite3" />
     <Content Include="app\static\app\content\bootstrap.css" />

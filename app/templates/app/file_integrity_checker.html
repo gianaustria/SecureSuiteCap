@@ -1,194 +1,73 @@
-{% extends 'app/layout.html' %}
 
-{% block title %}File Integrity Checker{% endblock %}
-
-
+{% extends "app/layout.html" %}
+{% load static %}
 {% block content %}
-<style>
-    body {
-        background-color: #f0f4f8;
-    }
-
-    .container {
-        max-width: 900px;
-        padding: 2rem 1rem;
-    }
-
-    .section {
-        display: none;
-        background: #ffffff;
-        padding: 1.5rem;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    }
-
-        .section.active {
-            display: block;
-        }
-
-    .nav-tabs {
-        border-bottom: 2px solid #007bff;
-    }
-
-    .nav-link {
-        color: #495057;
-        font-weight: 500;
-        padding: 0.75rem 1.5rem;
-        transition: all 0.3s ease;
-    }
-
-        .nav-link:hover, .nav-link.active {
-            color: #007bff;
-            background-color: #e9ecef;
-            border-radius: 6px 6px 0 0;
-        }
-
-    .section h2 {
-        font-size: 1.5rem;
-        color: #343a40;
-        margin-bottom: 1.5rem;
-    }
-
-    .btn-primary {
-        background-color: #007bff;
-        border-color: #007bff;
-        border-radius: 6px;
-        padding: 0.5rem 1.5rem;
-        margin-top: 1rem;
-        width: 100%;
-    }
-
-        .btn-primary:hover {
-            background-color: #0056b3;
-            border-color: #0056b3;
-        }
-
-    .form-control, .form-check-input {
-        border-radius: 6px;
-    }
-
-    .form-group {
-        margin-bottom: 1.5rem;
-    }
-
-    .alert {
-        border-radius: 6px;
-        margin-bottom: 1.5rem;
-    }
-
-    #visualizationChart {
-        max-width: 100%;
-        height: auto;
-    }
-
-    @media (max-width: 576px) {
-        .container {
-            padding: 1rem;
-        }
-
-        .section {
-            padding: 1rem;
-        }
-
-        .nav-link {
-            padding: 0.5rem 1rem;
-        }
-
-        .section h2 {
-            font-size: 1.3rem;
-        }
-    }
-</style>
-
-<div class="container mt-4">
-    <h1 class="mb-4 text-center text-dark fw-bold">File Integrity Checker</h1>
-
-    {% if messages %}
-    <div id="flashMessages" class="alert alert-info" role="alert">
-        {% for message in messages %}
-        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-        {% endfor %}
-    </div>
-    {% endif %}
-
-    <!-- Navigation -->
-    <nav class="nav nav-tabs mb-4">
-        <a class="nav-link active" href="#" onclick="showSection('upload')">Upload</a>
-        <a class="nav-link" href="#" onclick="showSection('logs')">Logs</a>
-        <a class="nav-link" href="#" onclick="showSection('visualization')">Visualization</a>
-        <a class="nav-link" href="#" onclick="showSection('collaboration')">Collaboration</a>
-        <a class="nav-link" href="#" onclick="showSection('policies')">Policies</a>
-    </nav>
-
-    <!-- Sections -->
-    <div id="upload" class="section active">
-        <h2>Upload Files</h2>
-        <form id="uploadForm" enctype="multipart/form-data" method="POST" action="{% url 'upload_files' %}">
-            {% csrf_token %}
-            <div class="form-group">
-                <input type="file" class="form-control" name="files" multiple accept=".exe,.dll,.pdf,.txt,.docx,.eml" required />
-                <div class="form-text">Select files to scan (.exe, .dll, .pdf, .txt, .docx, .eml)</div>
-            </div>
-            <button type="submit" class="btn btn-primary">Upload</button>
-        </form>
-        <div id="status" class="mt-3"></div>
-        <div id="results" class="mt-3"></div>
+<div class="container mx-auto px-4 py-8">
+    <div class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg shadow-lg p-6 mb-6">
+        <h2 class="text-3xl font-bold">File Integrity Checker</h2>
+        <p class="mt-2">Analyze files for malware, view logs, visualize data, collaborate, and manage policies.</p>
     </div>
 
-    <div id="logs" class="section">
-        <h2>Scan Logs</h2>
-        <div id="logsList"></div>
-    </div>
+    <ul class="nav nav-tabs flex flex-wrap border-b-0 mb-4" role="tablist">
+        <li class="nav-item">
+            <a class="nav-link active px-4 py-2 text-lg font-medium text-gray-700 bg-white border border-gray-200 rounded-t-lg shadow-sm hover:bg-blue-50 hover:text-blue-600 transition-colors" onclick="showSection('upload')" role="tab">Upload</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link px-4 py-2 text-lg font-medium text-gray-700 bg-white border border-gray-200 rounded-t-lg shadow-sm hover:bg-blue-50 hover:text-blue-600 transition-colors" onclick="showSection('logs')" role="tab">Logs</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link px-4 py-2 text-lg font-medium text-gray-700 bg-white border border-gray-200 rounded-t-lg shadow-sm hover:bg-blue-50 hover:text-blue-600 transition-colors" onclick="showSection('visualization')" role="tab">Visualization</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link px-4 py-2 text-lg font-medium text-gray-700 bg-white border border-gray-200 rounded-t-lg shadow-sm hover:bg-blue-50 hover:text-blue-600 transition-colors" onclick="showSection('collaboration')" role="tab">Collaboration</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link px-4 py-2 text-lg font-medium text-gray-700 bg-white border border-gray-200 rounded-t-lg shadow-sm hover:bg-blue-50 hover:text-blue-600 transition-colors" onclick="showSection('policies')" role="tab">Policies</a>
+        </li>
+    </ul>
 
-    <div id="visualization" class="section">
-        <h2>Scan Visualization</h2>
-        <div id="visualizationList" class="mb-3"></div>
-        <canvas id="visualizationChart"></canvas>
-    </div>
+    <div class="tab-content bg-white rounded-lg shadow-lg p-6">
+        <div id="upload" class="section active">
+            <h3 class="text-2xl font-semibold mb-4">Upload Files</h3>
+            <form id="uploadForm" enctype="multipart/form-data" class="flex flex-col items-center space-y-4">
+                {% csrf_token %}
+                <input type="file" name="files" multiple accept=".exe,.dll,.pdf,.txt,.docx,.eml" class="form-control w-full max-w-md border-2 border-gray-300 rounded-lg p-2 file:bg-blue-50 file:border-0 file:rounded file:px-4 file:py-2 file:mr-4 hover:file:bg-blue-100 focus:ring-2 focus:ring-blue-500">
+                <br />
+                <button type="submit" class="btn btn-primary bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition-colors">Upload</button>
+            </form>
+            <br />
+            <div id="results" class="mt-6 w-full space-y-4"></div>
+        </div>
 
-    <div id="collaboration" class="section">
-        <h2>Collaboration</h2>
-        <form id="collabForm" method="POST" action="{% url 'collaboration' %}">
-            {% csrf_token %}
-            <div class="form-group">
-                <textarea class="form-control" name="message" rows="4" placeholder="Enter your collaboration message"></textarea>
-            </div>
-            <button type="submit" class="btn btn-primary">Send</button>
-        </form>
-        <div id="collabList" class="mt-3"></div>
-    </div>
+        <div id="logs" class="section hidden">
+            <h3 class="text-2xl font-semibold mb-4">Logs</h3>
+            <div id="logsList" class="space-y-4"></div>
+        </div>
 
-    <div id="policies" class="section">
-        <h2>Scan Policies</h2>
-        <form id="policiesForm" method="POST" action="{% url 'policies' %}">
-            {% csrf_token %}
-            <div class="form-group">
-                <div class="form-check">
-                    <input type="checkbox" name="Malicious" id="Malicious" class="form-check-input">
-                    <label class="form-check-label" for="Malicious">Malicious</label>
-                </div>
-                <div class="form-check">
-                    <input type="checkbox" name="Suspicious" id="Suspicious" class="form-check-input">
-                    <label class="form-check-label" for="Suspicious">Suspicious</label>
-                </div>
-                <div class="form-check">
-                    <input type="checkbox" name="Harmless" id="Harmless" class="form-check-input">
-                    <label class="form-check-label" for="Harmless">Harmless</label>
-                </div>
-            </div>
-            <button type="submit" class="btn btn-primary">Save Policies</button>
-        </form>
+        <div id="visualization" class="section hidden">
+            <h3 class="text-2xl font-semibold mb-4">Visualizations</h3>
+            <div id="visualizationList" class="space-y-4"></div>
+            <canvas id="visualizationChart" class="mt-4 max-w-full"></canvas>
+        </div>
+
+        <div id="collaboration" class="section hidden">
+            <h3 class="text-2xl font-semibold mb-4">Collaboration</h3>
+            <form id="collabForm" class="space-y-4">
+                {% csrf_token %}
+                <textarea name="message" class="form-control w-full border-2 border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500" rows="4" placeholder="Enter your message"></textarea>
+                <button type="submit" class="btn btn-primary bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition-colors">Submit</button>
+            </form>
+            <div id="collabList" class="mt-6 space-y-4"></div>
+        </div>
+
+        <div id="policies" class="section hidden">
+            <h3 class="text-2xl font-semibold mb-4">Policies</h3>
+            <form id="policiesForm" class="space-y-4">
+                {% csrf_token %}
+                <!-- Policies loaded via AJAX -->
+                <button type="submit" class="btn btn-primary bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition-colors">Update Policies</button>
+            </form>
+        </div>
     </div>
 </div>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-<script>
-    let chart;
-    function showSection(sectionId) {
-        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-        document.getElementById(sectionId).classList.add('active');
-        document.querySelectorAll('.nav-link').forEach(n => n.classList.remove('active'));
-        document.querySelector(`.nav-link[onclick="showSection('${sectionId}')"]`).classList.add('active');
-    }
-</script>
 {% endblock %}
