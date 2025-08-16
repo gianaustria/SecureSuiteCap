@@ -1,247 +1,194 @@
 {% extends 'app/layout.html' %}
-{% block content %}
-<div class="container mt-5">
-    <div class="card shadow-sm">
-        <div class="card-body">
-            <h2 class="card-title mb-4 text-primary">Website Security Checker</h2>
+{% load static %}
 
-            <div class="mb-4">
-                <label for="url" class="form-label fw-bold">Target URL</label>
-                <div class="input-group">
-                    <input type="text" class="form-control" id="url" placeholder="example.com" aria-describedby="urlHelp">
-                    <button class="btn btn-primary" onclick="checkAvailability()">Check Availability</button>
-                </div>
-                <div id="urlHelp" class="form-text">Enter a valid website URL (e.g., example.com)</div>
-                <span id="checkResult" class="text-danger mt-2 d-block"></span>
+{% block content %}
+<div class="container mt-5 max-w-5xl mx-auto px-4">
+    <div class="bg-white shadow rounded-lg p-6">
+        <h2 class="text-2xl font-semibold text-blue-600 mb-6">Website Security Checker</h2>
+
+        <div class="mb-6">
+            <label for="url" class="block text-gray-700 font-semibold mb-2">Target URL</label>
+            <div class="flex">
+                <input id="url" type="text" placeholder="example.com" class="flex-grow border border-gray-300 rounded-l-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <button id="checkAvailabilityBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 rounded-r-md">Check Availability</button>
+            </div>
+            <p id="checkResult" class="mt-2 text-red-600"></p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <h3 class="font-semibold text-lg mb-2">Homepage Test</h3>
+                <button id="homepageTestBtn" class="w-full bg-gray-200 hover:bg-gray-300 py-2 rounded mb-2">Run Test</button>
+                <textarea id="homepageOutput" readonly rows="6" class="w-full border border-gray-300 rounded p-2 bg-gray-50"></textarea>
             </div>
 
-            <div class="row g-4">
-                <div class="col-md-6">
-                    <h5 class="mb-3">Homepage Test</h5>
-                    <button class="btn btn-outline-secondary w-100 mb-2" onclick="runHomepageTest()">Run Test</button>
-                    <textarea class="form-control" id="homepageOutput" rows="6" readonly></textarea>
-                </div>
+            <div>
+                <h3 class="font-semibold text-lg mb-2">Ping Test</h3>
+                <button id="pingTestBtn" class="w-full bg-gray-200 hover:bg-gray-300 py-2 rounded mb-2">Run Test</button>
+                <textarea id="pingOutput" readonly rows="6" class="w-full border border-gray-300 rounded p-2 bg-gray-50"></textarea>
+            </div>
 
-                <div class="col-md-6">
-                    <h5 class="mb-3">Ping Test</h5>
-                    <button class="btn btn-outline-secondary w-100 mb-2" onclick="runPingTest()">Run Test</button>
-                    <textarea class="form-control" id="pingOutput" rows="6" readonly></textarea>
-                </div>
+            <div>
+                <h3 class="font-semibold text-lg mb-2">Traceroute Test</h3>
+                <button id="tracerouteTestBtn" class="w-full bg-gray-200 hover:bg-gray-300 py-2 rounded mb-2">Run Test</button>
+                <textarea id="tracerouteOutput" readonly rows="6" class="w-full border border-gray-300 rounded p-2 bg-gray-50"></textarea>
+            </div>
 
-                <div class="col-md-6">
-                    <h5 class="mb-3">Traceroute Test</h5>
-                    <button class="btn btn-outline-secondary w-100 mb-2" onclick="runTracerouteTest()">Run Test</button>
-                    <textarea class="form-control" id="tracerouteOutput" rows="6" readonly></textarea>
-                </div>
-
-                <div class="col-md-6">
-                    <h5 class="mb-3">DNS Security Check</h5>
-                    <button class="btn btn-outline-secondary w-100 mb-2" onclick="runDnsCheck()">Run Test</button>
-                    <textarea class="form-control" id="dnsOutput" rows="6" readonly></textarea>
-                </div>
+            <div>
+                <h3 class="font-semibold text-lg mb-2">DNS Security Check</h3>
+                <button id="dnsTestBtn" class="w-full bg-gray-200 hover:bg-gray-300 py-2 rounded mb-2">Run Test</button>
+                <textarea id="dnsOutput" readonly rows="6" class="w-full border border-gray-300 rounded p-2 bg-gray-50"></textarea>
             </div>
         </div>
     </div>
 </div>
-
-<style>
-    .container {
-        max-width: 1200px;
-    }
-
-    .card {
-        border-radius: 10px;
-        border: none;
-    }
-
-    .card-title {
-        font-size: 1.8rem;
-        font-weight: 600;
-    }
-
-    .form-control {
-        border-radius: 6px;
-    }
-
-    .btn {
-        border-radius: 6px;
-        padding: 8px 20px;
-    }
-
-    .btn-primary {
-        background-color: #007bff;
-        border-color: #007bff;
-    }
-
-    .btn-outline-secondary {
-        border-color: #6c757d;
-    }
-
-        .btn-outline-secondary:hover {
-            background-color: #6c757d;
-            color: white;
-        }
-
-    textarea.form-control {
-        background-color: #f8f9fa;
-        resize: none;
-    }
-
-    .text-danger {
-        font-size: 0.9rem;
-    }
-</style>
-
 {% endblock %}
 
 {% block scripts %}
 <script>
-    // Get CSRF token for AJAX POST requests
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
+    (function () {
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
                 }
             }
-        }
-        return cookieValue;
-    }
-
-    // Check Availability function
-    async function checkAvailability() {
-        const urlInput = document.getElementById('url').value;
-        const resultElement = document.getElementById('checkResult');
-
-        if (!urlInput) {
-            resultElement.textContent = 'Error: Please enter a URL';
-            return;
+            return cookieValue;
         }
 
-        try {
-            const response = await fetch('/check/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCookie('csrftoken')
-                },
-                body: JSON.stringify({ url: urlInput })
-            });
-            const data = await response.json();
-            resultElement.textContent = data.result;
-            resultElement.className = data.result.includes('Error') ? 'text-danger mt-2 d-block' : 'text-success mt-2 d-block';
-        } catch (error) {
-            resultElement.textContent = `Error: ${error.message}`;
-            resultElement.className = 'text-danger mt-2 d-block';
-        }
-    }
-
-    // Homepage Test function
-    async function runHomepageTest() {
-        const urlInput = document.getElementById('url').value;
-        const outputElement = document.getElementById('homepageOutput');
-
-        if (!urlInput) {
-            outputElement.value = 'Error: Please enter a URL';
-            return;
+        async function checkAvailability() {
+            const urlInput = document.getElementById('url').value.trim();
+            const resultElement = document.getElementById('checkResult');
+            if (!urlInput) {
+                resultElement.textContent = 'Error: Please enter a URL';
+                resultElement.className = 'text-danger mt-2 d-block';
+                return;
+            }
+            try {
+                const response = await fetch('/check-availability/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken'),
+                    },
+                    body: JSON.stringify({ url: urlInput }),
+                });
+                const data = await response.json();
+                resultElement.textContent = data.result;
+                resultElement.className = data.result.includes('Error') ? 'text-danger mt-2 d-block' : 'text-success mt-2 d-block';
+            } catch (error) {
+                resultElement.textContent = `Error: ${error.message}`;
+                resultElement.className = 'text-danger mt-2 d-block';
+            }
         }
 
-        try {
-            const response = await fetch('/homepage/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCookie('csrftoken')
-                },
-                body: JSON.stringify({ url: urlInput })
-            });
-            const data = await response.json();
-            outputElement.value = data.result;
-        } catch (error) {
-            outputElement.value = `Error: ${error.message}`;
-        }
-    }
-
-    // Ping Test function
-    async function runPingTest() {
-        const urlInput = document.getElementById('url').value;
-        const outputElement = document.getElementById('pingOutput');
-
-        if (!urlInput) {
-            outputElement.value = 'Error: Please enter a URL';
-            return;
+        async function runHomepageTest() {
+            const urlInput = document.getElementById('url').value.trim();
+            const outputElement = document.getElementById('homepageOutput');
+            if (!urlInput) {
+                outputElement.value = 'Error: Please enter a URL';
+                return;
+            }
+            try {
+                const response = await fetch('/homepage-test/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken'),
+                    },
+                    body: JSON.stringify({ url: urlInput }),
+                });
+                const data = await response.json();
+                outputElement.value = data.result;
+            } catch (error) {
+                outputElement.value = `Error: ${error.message}`;
+            }
         }
 
-        try {
-            const response = await fetch('/ping/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCookie('csrftoken')
-                },
-                body: JSON.stringify({ url: urlInput })
-            });
-            const data = await response.json();
-            outputElement.value = data.result;
-        } catch (error) {
-            outputElement.value = `Error: ${error.message}`;
-        }
-    }
-
-    // Traceroute Test function
-    async function runTracerouteTest() {
-        const urlInput = document.getElementById('url').value;
-        const outputElement = document.getElementById('tracerouteOutput');
-
-        if (!urlInput) {
-            outputElement.value = 'Error: Please enter a URL';
-            return;
+        async function runPingTest() {
+            const urlInput = document.getElementById('url').value.trim();
+            const outputElement = document.getElementById('pingOutput');
+            if (!urlInput) {
+                outputElement.value = 'Error: Please enter a URL';
+                return;
+            }
+            try {
+                const response = await fetch('/ping-test/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken'),
+                    },
+                    body: JSON.stringify({ url: urlInput }),
+                });
+                const data = await response.json();
+                outputElement.value = data.result;
+            } catch (error) {
+                outputElement.value = `Error: ${error.message}`;
+            }
         }
 
-        try {
-            const response = await fetch('/traceroute/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCookie('csrftoken')
-                },
-                body: JSON.stringify({ url: urlInput })
-            });
-            const data = await response.json();
-            outputElement.value = data.result;
-        } catch (error) {
-            outputElement.value = `Error: ${error.message}`;
-        }
-    }
-
-    // DNS Security Check function
-    async function runDnsCheck() {
-        const urlInput = document.getElementById('url').value;
-        const outputElement = document.getElementById('dnsOutput');
-
-        if (!urlInput) {
-            outputElement.value = 'Error: Please enter a URL';
-            return;
+        async function runTracerouteTest() {
+            const urlInput = document.getElementById('url').value.trim();
+            const outputElement = document.getElementById('tracerouteOutput');
+            if (!urlInput) {
+                outputElement.value = 'Error: Please enter a URL';
+                return;
+            }
+            try {
+                const response = await fetch('/traceroute-test/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken'),
+                    },
+                    body: JSON.stringify({ url: urlInput }),
+                });
+                const data = await response.json();
+                outputElement.value = data.result;
+            } catch (error) {
+                outputElement.value = `Error: ${error.message}`;
+            }
         }
 
-        try {
-            const response = await fetch('/dns/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCookie('csrftoken')
-                },
-                body: JSON.stringify({ url: urlInput })
-            });
-            const data = await response.json();
-            outputElement.value = data.result;
-        } catch (error) {
-            outputElement.value = `Error: ${error.message}`;
+        async function runDnsTest() {
+            const urlInput = document.getElementById('url').value.trim();
+            const outputElement = document.getElementById('dnsOutput');
+            if (!urlInput) {
+                outputElement.value = 'Error: Please enter a URL';
+                return;
+            }
+            try {
+                const response = await fetch('/dns-check/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken'),
+                    },
+                    body: JSON.stringify({ url: urlInput }),
+                });
+                const data = await response.json();
+                outputElement.value = data.result;
+            } catch (error) {
+                outputElement.value = `Error: ${error.message}`;
+            }
         }
-    }
+
+        // Attach event listeners on DOMContentLoaded
+        document.addEventListener('DOMContentLoaded', function () {
+            document.getElementById('checkAvailabilityBtn').addEventListener('click', checkAvailability);
+            document.getElementById('homepageTestBtn').addEventListener('click', runHomepageTest);
+            document.getElementById('pingTestBtn').addEventListener('click', runPingTest);
+            document.getElementById('tracerouteTestBtn').addEventListener('click', runTracerouteTest);
+            document.getElementById('dnsTestBtn').addEventListener('click', runDnsTest);
+        });
+    })();
 </script>
 {% endblock %}
+

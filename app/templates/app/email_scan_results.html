@@ -1,0 +1,205 @@
+{% extends 'app/layout.html' %}
+{% load custom_filters %}
+{% load static %}
+
+{% block title %}Email Scan Results{% endblock %}
+
+{% block content %}
+<style>
+    .center-wrapper {
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        min-height: 80vh;
+        padding: 2rem 0;
+    }
+
+    .results-box {
+        background: #ffffff;
+        padding: 2rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        width: 100%;
+        max-width: 800px;
+    }
+
+    .section-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        margin-top: 1.5rem;
+        margin-bottom: 1rem;
+        color: #343a40;
+    }
+
+    .message {
+        background-color: #e6f4ea;
+        color: #333;
+        padding: 0.75rem;
+        border-left: 5px solid #28a745;
+        margin-bottom: 1.5rem;
+        border-radius: 4px;
+    }
+
+    .error-message {
+        background-color: #f8d7da;
+        color: #721c24;
+        padding: 0.75rem;
+        border-left: 5px solid #dc3545;
+        margin-bottom: 1.5rem;
+        border-radius: 4px;
+    }
+
+    .btn-primary, .btn-success {
+        border-radius: 6px;
+        padding: 0.5rem 1.5rem;
+        margin-top: 1rem;
+    }
+
+    .btn-primary {
+        background-color: #007bff;
+        border-color: #007bff;
+    }
+
+    .btn-success {
+        background-color: #28a745;
+        border-color: #28a745;
+    }
+
+    .list-group-item {
+        border-radius: 6px;
+        margin-bottom: 0.5rem;
+    }
+
+    .safe {
+        color: #28a745;
+    }
+
+    .malicious {
+        color: #dc3545;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        white-space: normal;
+        max-width: 100%;
+    }
+
+    @media (max-width: 576px) {
+        .results-box {
+            padding: 1.5rem;
+        }
+
+        .section-title {
+            font-size: 1.1rem;
+        }
+    }
+</style>
+
+<div class="center-wrapper">
+    <div class="results-box">
+        <h1 class="mb-4 text-center text-dark fw-bold">Email Scan Results</h1>
+
+        {% if messages %}
+        <div class="alert alert-success" role="alert">
+            {% for message in messages %}
+            <div class="message">{{ message }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if error %}
+        <div class="error-message">{{ error }}</div>
+        {% endif %}
+
+        {% for result in results %}
+        <div class="mb-4">
+            <h2 class="section-title">Results for {{ result.filename }}</h2>
+            <div class="list-group">
+                <div class="list-group-item">
+                    <strong>Headers</strong>
+                    <ul class="list-disc pl-5">
+                        <li><strong>From:</strong> {{ result.headers.From|default:"N/A" }}</li>
+                        <li><strong>To:</strong> {{ result.headers.To|default:"N/A" }}</li>
+                        <li><strong>Subject:</strong> {{ result.headers.Subject|default:"N/A" }}</li>
+                        <li>
+                            <strong>Authentication-Results:</strong> {{ result.header_analysis|get_item:"Authentication-Results"|default:"Not found" }}
+                        </li>
+                        {% if result.header_analysis.Flags %}
+                        <li>
+                            <strong>Flags:</strong>
+                            <ul class="list-disc pl-5">
+                                {% for flag in result.header_analysis.Flags %}
+                                <li class="malicious">{{ flag }}</li>
+                                {% endfor %}
+                            </ul>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </div>
+                <div class="list-group-item">
+                    <strong>Safe Links</strong>
+                    <ul class="list-disc pl-5">
+                        {% for link in result.safe_links %}
+                        <li class="safe">{{ link }}</li>
+                        {% empty %}
+                        <li>No safe links detected.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div class="list-group-item">
+                    <strong>Malicious Links</strong>
+                    <ul class="list-disc pl-5">
+                        {% for link, count in result.malicious_links.items %}
+                        <li class="malicious">{{ link }} - flagged by {{ count }} vendors</li>
+                        {% empty %}
+                        <li>No malicious links detected.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div class="list-group-item">
+                    <strong>Safe Attachments</strong>
+                    <ul class="list-disc pl-5">
+                        {% for att in result.safe_attachments %}
+                        <li class="safe">{{ att }}</li>
+                        {% empty %}
+                        <li>No safe attachments detected.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div class="list-group-item">
+                    <strong>Malicious Attachments</strong>
+                    <ul class="list-disc pl-5">
+                        {% for att, info in result.malicious_attachments.items %}
+                        <li class="malicious">{{ att }} - flagged by {{ info.malicious_count }} vendors</li>
+                        {% empty %}
+                        <li>No malicious attachments detected.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div class="list-group-item">
+                    <strong>Keywords Found</strong>
+                    <ul class="list-disc pl-5">
+                        {% for level, words in result.keywords_found.items %}
+                        <li><strong>{{ level }}:</strong> {{ words|join:", "|default:"None" }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div class="list-group-item">
+                    <strong>Security Recommendations</strong>
+                    <ul class="list-disc pl-5">
+                        {% for rec in result.recommendations %}
+                        <li>{{ rec }}</li>
+                        {% empty %}
+                        <li>No specific recommendations.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="error-message">No results available.</div>
+        {% endfor %}
+
+        <a href="{% url 'download_report' %}" class="btn btn-success w-100">Download Report</a>
+        <a href="{% url 'email_analyzer' %}" class="btn btn-primary w-100 mt-2">Back to Email Analyzer</a>
+    </div>
+</div>
+{% endblock %}

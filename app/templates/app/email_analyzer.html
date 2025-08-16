@@ -1,7 +1,8 @@
+
 {% extends 'app/layout.html' %}
+{% load static %}
 
 {% block title %}Scan Email Checker{% endblock %}
-
 
 {% block content %}
 <style>
@@ -42,7 +43,7 @@
     .btn-primary, .btn-success {
         border-radius: 6px;
         padding: 0.5rem 1.5rem;
-        margin-top: 1rem; /* Added for consistent button spacing */
+        margin-top: 1rem;
     }
 
     .btn-primary {
@@ -66,7 +67,7 @@
         }
 
     .form-group {
-        margin-bottom: 1.5rem; /* Consistent spacing for form groups */
+        margin-bottom: 1.5rem;
     }
 
     @media (max-width: 576px) {
@@ -92,27 +93,17 @@
         </div>
         {% endif %}
 
-        <form method="POST" action="/scan" enctype="multipart/form-data">
+        <form method="POST" action="{% url 'scan_single_email' %}" enctype="multipart/form-data">
             {% csrf_token %}
             <p class="section-title">Upload a Single .eml File</p>
             <div class="form-group">
                 <input type="file" class="form-control" name="email_file" accept=".eml" required />
                 <div class="form-text">Select a single .eml file to scan for security issues.</div>
             </div>
-            <button type="submit" class="btn btn-primary w-100">Scan Single Email</button>
+            <button type="submit" class="btn btn-primary w-100">Scan Email</button>
         </form>
 
-        <form method="POST" action="/batch" enctype="multipart/form-data" class="mt-4">
-            {% csrf_token %}
-            <p class="section-title">Upload Multiple .eml Files (Batch)</p>
-            <div class="form-group">
-                <input type="file" class="form-control" name="email_files" accept=".eml" multiple required />
-                <div class="form-text">Select multiple .eml files for batch scanning.</div>
-            </div>
-            <button type="submit" class="btn btn-primary w-100">Scan Batch Emails</button>
-        </form>
-
-        <form action="/download" method="GET" class="mt-4">
+        <form action="{% url 'download_report' %}" method="GET" class="mt-4">
             <p class="section-title">Download Latest Scan Result</p>
             <button class="btn btn-success w-100">Download Report</button>
         </form>

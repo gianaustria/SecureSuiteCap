@@ -1,0 +1,27 @@
+From: Student Finance Team <studentservices@finance.ca>
+Reply-To: Missing
+Return-Path: Missing
+Authentication-Results: Not found
+Header Flags: 
+
+Safe Links:
+
+Malicious Links:
+[⚠️] https://www.securembly.org/can/f52f2183-9f67-4ad2-b656-6f754fe196cb/6adeb79d-2348-4cad-82c2-6a9df4aa5f26/5462d7d1-ca99-4621-9d09-0d960cef4d82/login?id=alhVNTRXNnR6U1BJcVJ4b0g3WEJGdWRXclJCQzJjK2ZJNm5XY0ZLL1FwTkNVYzFlMmJNdlVTN2VuQ2tnMCtkMWRyTFBjZlMxM1liWW9LT2NnVDYwbTJ0anFrZUJFbVMwMzQwTUIyRXVNVlZOWktObTVrOXpMQ0wrTGV2RmY0azVqWTk1Zm00cm5GeW9zYnZiTmpsNGR1c0lweTVaRWw1eHl1RU5NajBneGdLbGgwbExFWjM0eXoyUE01NEVSYVVvRTFXcWtHVG1GZmp4TnZzMmIyNUxkeGNvaHFmaGY5aG13YVFvUmREQStIYlVXeSsybkZYTVlyc0JBUXdLVUt6N053THdIRFpNT0ZWTThNTUFEZjBzUVZ6Q3Zob0JZdTJZMldQSENXaHdIQ0hDc3FoWnYrVlZ5QTFLYlAxN0Zyb3VGUklDaUZyVUxlMHBYTkQ0SHIyMjE2UXZsY1g3bTZHTkR5Q2w0OFFpNC9UREVkRGc2NTAwT2QyclcvUDIxU3U2d04vaHFZTjBMZTQ5NSszbmxtMllYZWFXejlodWEwRS9PQ1AwK3ZUWmNEVT0 - flagged by 3 vendors
+
+Safe Attachments:
+
+Malicious Attachments:
+
+Keywords Found:
+High Risk: order
+Medium Risk: login, account
+Low Risk: None
+
+Security Recommendations:
+- This email contains high-risk keywords (e.g., 'order', 'document'). Be cautious — do NOT click links or download attachments unless verified.
+- Medium-risk words found (e.g., 'login', 'password'). Double-check the sender and go to official websites directly.
+- Malicious content detected. Follow these precautions:
+- 1. 🚫 Don’t open suspicious links or attachments.
+- 2. 🧠 If unsure, verify the sender by other means.
+- 3. 🔐 Keep antivirus up-to-date.

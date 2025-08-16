@@ -1,50 +1,63 @@
 {% extends "app/layout.html" %}
+{% load form_tags %}
 
 {% block content %}
-
-<h2>{{ title }}</h2>
-<div class="row">
-    <div class="col-md-8">
-        <section id="loginForm">
-            <form action="." method="post" class="form-horizontal">
-                {% csrf_token %}
-                <h4>Use a local account to log in.</h4>
-                <hr />
-                <div class="form-group">
-                    <label for="id_username" class="col-md-2 control-label">User name</label>
-                    <div class="col-md-10">
-                        {{ form.username }}
-                    </div>
+<div class="min-h-screen flex items-center justify-center bg-gray-100">
+    <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
+        <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">{{ title }}</h2>
+        <form action="." method="post" class="space-y-6">
+            {% csrf_token %}
+            <div>
+                <label for="id_username" class="block text-sm font-medium text-gray-700">Username</label>
+                <div class="mt-1">
+                    {{ form.username|add_class:"w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" }}
                 </div>
-                <div class="form-group">
-                    <label for="id_password" class="col-md-2 control-label">Password</label>
-                    <div class="col-md-10">
-                        {{ form.password }}
-                    </div>
+            </div>
+            <div>
+                <label for="id_password" class="block text-sm font-medium text-gray-700">Password</label>
+                <div class="mt-1">
+                    {{ form.password|add_class:"w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" }}
                 </div>
-                <div class="form-group">
-                    <div class="col-md-offset-2 col-md-10">
-                        <input type="hidden" name="next" value="/" />
-                        <input type="submit" value="Log in" class="btn btn-default" />
-                    </div>
-                </div>
-                {% if form.errors %}
-                <p class="validation-summary-errors">Please enter a correct user name and password.</p>
-                {% endif %}
-            </form>
-        </section>
-    </div>
-    <div class="col-md-4">
-        <section id="socialLoginForm"></section>
+            </div>
+            <div>
+                <input type="hidden" name="next" value="{% url 'account' %}" />
+                <button type="submit" class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">Log in</button>
+            </div>
+            {% if form.errors %}
+            <p class="text-red-500 text-sm text-center">Please enter a correct username and password.</p>
+            {% endif %}
+        </form>
     </div>
 </div>
-
 {% endblock %}
 
-
 {% block scripts %}
-
-    {% load static %}
+{% load static %}
+<script src="{% static 'app/scripts/jquery.min.js' %}"></script>
 <script src="{% static 'app/scripts/jquery.validate.min.js' %}"></script>
-
+<script>
+    $(document).ready(function () {
+        $("#loginForm form").validate({
+            rules: {
+                username: { required: true, minlength: 3 },
+                password: { required: true, minlength: 2 }
+            },
+            messages: {
+                username: {
+                    required: "Please enter a username",
+                    minlength: "Username must be at least 3 characters long"
+                },
+                password: {
+                    required: "Please enter a password",
+                    minlength: "Password must be at least 6 characters long"
+                }
+            },
+            errorElement: "span",
+            errorClass: "text-red-500 text-sm",
+            errorPlacement: function (error, element) {
+                error.insertAfter(element);
+            }
+        });
+    });
+</script>
 {% endblock %}

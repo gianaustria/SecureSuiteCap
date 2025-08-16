@@ -1,0 +1,38 @@
+{% extends "app/layout.html" %}
+{% load form_tags %}
+{% block content %}
+<div class="min-h-screen flex items-center justify-center bg-gray-100">
+    <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
+        <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">{{ title }}</h2>
+        <div class="space-y-4">
+            <h4 class="text-lg font-semibold text-gray-700">Welcome, {{ username }}!</h4>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Username:</label>
+                <p class="mt-1 text-gray-900">{{ username }}</p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Email:</label>
+                <p class="mt-1 text-gray-900">{{ email|default:"Not provided" }}</p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Date Joined:</label>
+                <p class="mt-1 text-gray-900">{{ date_joined|date:"Y-m-d H:i:s" }}</p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Login Time:</label>
+                <p class="mt-1 text-gray-900">{{ login_time|default:"Not available" }}</p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Session Expiry:</label>
+                <p class="mt-1 text-gray-900">{{ session_expiry|date:"Y-m-d H:i:s"|default:"Not available" }}</p>
+            </div>
+            <div class="flex flex-col space-y-2 mt-6">
+                <a href="{% url 'file_integrity_checker' %}" class="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 text-center">File Integrity Checker</a>
+                <a href="{% url 'website_checker' %}" class="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 text-center">Website Checker</a>
+                <a href="{% url 'home' %}" class="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 text-center">Home</a>
+                <a href="{% url 'logout' %}" class="bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 text-center">Log Out</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

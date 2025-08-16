@@ -32,12 +32,21 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="app\apps.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="app\forms.py" />
     <Compile Include="app\models.py" />
-    <Compile Include="app\templates\app\templatetags\filters.py">
+    <Compile Include="app\templatetags\custom_filters.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="app\templatetags\form_tags.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="app\tests.py" />
+    <Compile Include="app\urls.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="app\utils.py">
       <SubType>Code</SubType>
     </Compile>
@@ -62,22 +71,26 @@
     <Folder Include="app\static\js\" />
     <Folder Include="app\templates\" />
     <Folder Include="app\templates\app\" />
-    <Folder Include="app\templates\app\templatetags\" />
+    <Folder Include="app\templatetags\" />
     <Folder Include="app\templates\app\partials\" />
     <Folder Include="uploads\" />
     <Folder Include="SecureSuiteCap\" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="app\static\app\content\style.css" />
     <Content Include="app\static\app\images\email.png" />
     <Content Include="app\static\app\images\file.png" />
     <Content Include="app\static\app\images\online.png" />
-    <Content Include="app\static\app\scripts\scripts.js" />
+    <Content Include="app\static\app\scripts\script.js" />
+    <Content Include="app\templates\app\account.html" />
     <Content Include="app\templates\app\collaboration.html" />
     <Content Include="app\templates\app\email_analyzer.html" />
+    <Content Include="app\templates\app\email_scan_results.html" />
     <Content Include="app\templates\app\file_integrity_checker.html" />
     <Content Include="app\templates\app\logs.html" />
     <Content Include="app\templates\app\partials\visualizations_partial.html" />
     <Content Include="app\templates\app\policies.html" />
+    <Content Include="app\templates\app\signup.html" />
     <Content Include="app\templates\app\virtualization.html" />
     <Content Include="app\templates\app\website_checker.html" />
     <Content Include="keywords.txt" />

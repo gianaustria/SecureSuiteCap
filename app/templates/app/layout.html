@@ -25,6 +25,15 @@
                     <a href="{% url 'email_analyzer' %}" class="hover:text-green-300">Email Analyzer</a>
                     <a href="{% url 'file_integrity_checker' %}" class="hover:text-green-300">File Integrity Checker</a>
                     <a href="{% url 'website_checker' %}" class="hover:text-green-300">Website Checker</a>
+                    {% if user.is_authenticated %}
+                    <span class="text-white">
+                        Welcome, <a href="{% url 'profile' user.username %}" class="underline hover:text-green-300">{{ user.username }}</a>!
+                    </span>
+                    <a href="{% url 'logout' %}" class="text-white hover:text-gray-200 ml-4">Log Out</a>
+                    {% else %}
+                    <a href="{% url 'login' %}" class="text-white hover:text-gray-200">Log In</a>
+                    <a href="{% url 'signup' %}" class="text-white hover:text-gray-200">Sign Up</a>
+                    {% endif %}
                 </div>
 
                 <!-- Mobile Button -->
@@ -59,7 +68,9 @@
     <script src="{% static 'app/scripts/jquery-1.10.2.js' %}"></script>
     <script src="{% static 'app/scripts/bootstrap.js' %}"></script>
     <script src="{% static 'app/scripts/respond.js' %}"></script>
-    <script src="{% static 'app/scripts/scripts.js' %}"></script>
+   
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
     <script>

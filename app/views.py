@@ -1,11 +1,4 @@
-﻿
-from datetime import datetime
-from django.shortcuts import render, redirect
-from django.http import HttpRequest, JsonResponse, HttpResponse, FileResponse
-from django.contrib import messages
-from django.conf import settings
-from .models import ScanLog, CollaborationMessage, Policy
-import os
+﻿import os
 import tempfile
 import pandas as pd
 import requests
@@ -18,12 +11,42 @@ import json
 import hashlib
 import threading
 import time
+import csv
+import logging
 from email import message_from_bytes, policy
 from email.parser import BytesParser
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
 import shutil
 import platform
+from datetime import datetime
+from django.shortcuts import render, redirect, get_object_or_404
+from django.http import JsonResponse, HttpResponse, FileResponse
+from django.contrib import messages
+from django.conf import settings
+from django.views.decorators.csrf import csrf_exempt
+from .models import ScanLog, CollaborationMessage, Policy
+from django.utils.datastructures import MultiValueDictKeyError
+from django.db import transaction, models
+from .models import ScanLog
+from io import StringIO
+from django.contrib.auth import authenticate, login as auth_login, logout
+from django.contrib.auth.forms import AuthenticationForm
+from django.contrib.auth.decorators import login_required
+from .forms import SignUpForm
+from django.contrib.auth import login
+from django.shortcuts import render, get_object_or_404
+from django.contrib.auth.models import User
+
+# Set up logging at the top of the file
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler()  # Output to console
+    ]
+)
+logger = logging.getLogger(__name__)
 
 # Configuration
 UPLOAD_DIR = os.path.join(settings.MEDIA_ROOT, 'Uploads')
@@ -34,7 +57,86 @@ os.makedirs(REPORT_DIR, exist_ok=True)
 API_KEY = "bdc0a7e18fc1e1c91bd9d46501c6fc575228f53938421b72b160fed17a2378a5"
 KEYWORDS_FILE = os.path.join(settings.BASE_DIR, 'keywords.txt')
 
-# EmailAnalyzer and related classes
+def signup_view(request):
+    if request.method == 'POST':
+        form = SignUpForm(request.POST)
+        if form.is_valid():
+            user = form.save(commit=False)
+            user.set_password(form.cleaned_data['password'])
+            user.save()
+            auth_login(request, user)  # auto login after signup
+            return redirect('home')  # redirect to your homepage or dashboard
+    else:
+        form = SignUpForm()
+
+    return render(request, 'app/signup.html', {'form': form})
+
+def logout_view(request):
+    if request.user.is_authenticated:
+        logger.debug(f"User {request.user.username} logged out")
+        logout(request)
+    return redirect('home')  # Redirect to home page after logout
+
+def login_view(request):
+    if request.user.is_authenticated:
+        return redirect('account')
+    if request.method == 'POST':
+        form = AuthenticationForm(request, data=request.POST)
+        if form.is_valid():
+            username = form.cleaned_data.get('username')
+            password = form.cleaned_data.get('password')
+            user = authenticate(request, username=username, password=password)
+            if user is not None:
+                auth_login(request, user)
+                request.session['_auth_user_login_time'] = datetime.now().isoformat()
+                request.session.modified = True
+                logger.debug(f"User {username} logged in successfully")
+                return redirect('account')
+            else:
+                logger.warning(f"Authentication failed for username: {username}")
+                form.add_error(None, "Invalid username or password")
+        else:
+            logger.warning("Invalid form submission for login")
+    else:
+        form = AuthenticationForm()
+    
+    return render(request, 'app/login.html', {'form': form, 'title': 'Log in'})
+
+@login_required
+def account_view(request):
+    session = request.session
+    session_key = session.session_key
+    session_expiry = session.get_expiry_date() if session_key else None
+    context = {
+        'title': 'Account',
+        'username': request.user.username,
+        'email': request.user.email,
+        'date_joined': request.user.date_joined,
+        'session_key': session_key or 'Not available',
+        'session_expiry': session_expiry,
+        'login_time': session.get('_auth_user_login_time', None),
+    }
+    return render(request, 'app/account.html', context)
+
+def profile_view(request, username):
+    user_obj = get_object_or_404(User, username=username)
+
+    # Attempt to get session info if request.user matches user_obj
+    session = request.session if request.user == user_obj else None
+
+    context = {
+        'title': f"{user_obj.username}'s Account",
+        'username': user_obj.username,
+        'email': user_obj.email,
+        'date_joined': user_obj.date_joined,
+        'session_key': session.session_key if session else 'N/A',
+        'login_time': session.get('_session_init_time', 'Not available') if session else 'Not available',
+        'session_expiry': session.get_expiry_date() if session else None,
+    }
+
+    return render(request, 'app/account.html', context)
+
+# EmailAnalyzer and related classes (unchanged for brevity)
 class KeywordDetector:
     def __init__(self, keywords_file):
         self.keywords = self.load_keywords(keywords_file)
@@ -81,7 +183,7 @@ class LinkScanner:
         url = "https://www.virustotal.com/api/v3/urls"
         for link in links:
             try:
-                time.sleep(1)  # Avoid rate limits
+                time.sleep(1)
                 response = requests.post(url, headers=headers, data={"url": link})
                 if response.status_code == 200:
                     scan_id = response.json().get("data", {}).get("id", "")
@@ -118,7 +220,7 @@ class AttachmentScanner:
             if not os.path.exists(filepath) or os.path.getsize(filepath) > 32 * 1024 * 1024:
                 continue
             try:
-                time.sleep(1)  # Avoid rate limits
+                time.sleep(1)
                 with open(filepath, "rb") as f:
                     file_hash = hashlib.sha256(f.read()).hexdigest()
                 url = f"https://www.virustotal.com/api/v3/files/{file_hash}"
@@ -146,6 +248,7 @@ class EmailAnalyzer:
         self.malicious_links = {}
         self.malicious_attachments = {}
         self.header_analysis = {}
+        self.recommendations = []
         self.attachment_dir = os.path.join(settings.MEDIA_ROOT, "attachments")
         if os.path.exists(self.attachment_dir):
             shutil.rmtree(self.attachment_dir)
@@ -172,7 +275,7 @@ class EmailAnalyzer:
             "From": from_header,
             "Reply-To": reply_to,
             "Return-Path": return_path,
-            "Authentication-Results": auth_results,
+            "Authentication_Results": auth_results,
             "Flags": flags
         }
     
@@ -200,6 +303,28 @@ class EmailAnalyzer:
         self.keywords_found = KeywordDetector(self.keywords_file).detect(self.email_body)
         self.malicious_links, _ = LinkScanner(self.api_key).scan(self.links)
         self.malicious_attachments, _ = AttachmentScanner(self.api_key).scan(self.attachments)
+        
+        if self.keywords_found.get("High Risk"):
+            self.recommendations.append("This email contains high-risk keywords (e.g., 'order', 'document'). Be cautious — do NOT click links or download attachments unless verified.")
+        if self.keywords_found.get("Medium Risk"):
+            self.recommendations.append("Medium-risk words found (e.g., 'login', 'password'). Double-check the sender and go to official websites directly.")
+        if self.keywords_found.get("Low Risk"):
+            self.recommendations.append("Low-risk marketing terms found (e.g., 'free', 'offer'). Watch out for scams or clickbait. Avoid impulsive actions.")
+        if self.malicious_links or self.malicious_attachments:
+            self.recommendations.extend([
+                "Malicious content detected. Follow these precautions:",
+                "1. 🚫 Don’t open suspicious links or attachments.",
+                "2. 🧠 If unsure, verify the sender by other means.",
+                "3. 🔐 Keep antivirus up-to-date."
+            ])
+        if (
+            not self.keywords_found.get("High Risk") and
+            not self.keywords_found.get("Medium Risk") and
+            not self.malicious_links and
+            not self.malicious_attachments and
+            not self.header_analysis.get("Flags")
+        ):
+            self.recommendations.append("This email appears to be safe. No malicious links, attachments, or suspicious headers were detected.")
 
     def save_results_to_file(self, filename="scan_results.txt"):
         filename = os.path.join(REPORT_DIR, filename)
@@ -207,7 +332,7 @@ class EmailAnalyzer:
             f.write("From: " + self.header_analysis.get("From", "") + "\n")
             f.write("Reply-To: " + self.header_analysis.get("Reply-To", "") + "\n")
             f.write("Return-Path: " + self.header_analysis.get("Return-Path", "") + "\n")
-            f.write("Authentication-Results: " + self.header_analysis.get("Authentication-Results", "") + "\n")
+            f.write("Authentication-Results: " + self.header_analysis.get("Authentication_Results", "") + "\n")
             f.write("Header Flags: \n")
             for flag in self.header_analysis.get("Flags", []):
                 f.write("- " + flag + "\n")
@@ -229,35 +354,26 @@ class EmailAnalyzer:
             for level, words in self.keywords_found.items():
                 f.write(f"{level}: {', '.join(words) if words else 'None'}\n")
             f.write("\nSecurity Recommendations:\n")
-            if self.keywords_found.get("High Risk"):
-                messages.warning(request, "This email contains high-risk keywords.")
-                f.write("- This email contains high-risk keywords (e.g., 'order', 'document').\n")
-                f.write("  ⚠️ Be cautious — do NOT click links or download attachments unless verified.\n")
-            if self.keywords_found.get("Medium Risk"):
-                messages.warning(request, "Medium-risk words found in email.")
-                f.write("- Medium-risk words found (e.g., 'login', 'password').\n")
-                f.write("  🕵️ Double-check the sender and go to official websites directly.\n")
-            if self.keywords_found.get("Low Risk"):
-                messages.info(request, "Low-risk marketing terms found in email.")
-                f.write("- Low-risk marketing terms found (e.g., 'free', 'offer').\n")
-                f.write("  🔍 Watch out for scams or clickbait. Avoid impulsive actions.\n")
-            if self.malicious_links or self.malicious_attachments:
-                messages.error(request, "Malicious content detected in email.")
-                f.write("\n⚠️ Malicious content was detected. Follow these precautions:\n")
-                f.write("1. 🚫 Don’t open suspicious links or attachments.\n")
-                f.write("2. 🧠 If unsure, verify the sender by other means.\n")
-                f.write("3. 🔐 Keep antivirus up-to-date.\n")
-            if (
-                not self.keywords_found.get("High Risk") and
-                not self.keywords_found.get("Medium Risk") and
-                not self.malicious_links and
-                not self.malicious_attachments and
-                not self.header_analysis.get("Flags")
-            ):
-                messages.success(request, "This email appears to be safe.")
-                f.write("\n✅ This email appears to be safe.\n")
-                f.write("No malicious links, attachments, or suspicious headers were detected.\n")
+            for rec in self.recommendations:
+                f.write(f"- {rec}\n")
         return filename
+
+    def get_results(self, filename):
+        return {
+            'filename': filename,
+            'headers': {
+                'From': self.header_analysis.get('From', 'N/A'),
+                'To': self.header_analysis.get('To', 'N/A'),
+                'Subject': self.header_analysis.get('Subject', 'N/A')
+            },
+            'header_analysis': self.header_analysis,
+            'safe_links': [link for link in self.links if link not in self.malicious_links],
+            'malicious_links': self.malicious_links,
+            'safe_attachments': [os.path.basename(att) for att in self.attachments if os.path.basename(att) not in self.malicious_attachments],
+            'malicious_attachments': self.malicious_attachments,
+            'keywords_found': self.keywords_found,
+            'recommendations': self.recommendations
+        }
 
     def _extract_links_thread(self):
         self.links = self.extract_links(self.email_body)
@@ -293,7 +409,7 @@ class EmailAnalyzer:
                         f.write(part.get_payload(decode=True))
                     self.attachments.append(filepath)
 
-# Utility function for URL cleaning
+# Utility functions
 def clean_url(target):
     target = target.strip()
     if not target:
@@ -301,70 +417,249 @@ def clean_url(target):
     target = re.sub(r'^www\.', '', target, flags=re.IGNORECASE)
     if not (target.startswith("http://") or target.startswith("https://")):
         target = "https://" + target
-    domain = re.sub(r'^(http://|https://)', '', target).split('/')[0]
+    domain = re.sub(r'[](http://|https://)', '', target).split('/')[0]
     return target, domain
 
-# Utility function for file analysis (placeholder)
 def analyze_file(file_path):
-    stats = {'size': os.path.getsize(file_path), 'type': file_path.split('.')[-1]}
-    detailed = f"Analyzed {file_path}"
+    stats = {'size': os.path.getsize(file_path), 'type': file_path.split('.')[-1].lower()}
+    scanner = AttachmentScanner(API_KEY)
+    scan_results, scan_summary = scanner.scan([file_path])
+    filename = os.path.basename(file_path)
+    if filename in scan_results:
+        stats['malware_status'] = f"Malicious: flagged by {scan_results[filename]['malicious_count']} vendors"
+        stats['malware_details'] = {
+            vendor: result for vendor, result in scan_results[filename]['analysis_results'].items() if result['category'] == 'malicious'
+        }
+    else:
+        stats['malware_status'] = "No malicious content detected"
+        stats['malware_details'] = {}
+    detailed = f"Analyzed {filename}: {stats['malware_status']}"
     return stats, detailed
 
-# Updated upload_files view with malware scanning
+# Views
+def file_integrity_checker(request):
+    if request.user.is_authenticated:
+        logs = ScanLog.objects.filter(user=request.user)
+    else:
+        session_key = request.session.session_key
+        if not session_key:
+            request.session.create()
+            session_key = request.session.session_key
+        logs = ScanLog.objects.filter(session_key=session_key, user__isnull=True)
+
+    malicious_count = 0
+    non_malicious_count = 0
+    for log in logs:
+        try:
+            stats = json.loads(log.stats) if isinstance(log.stats, str) else log.stats
+            if stats.get('malware_status', '').startswith('Malicious'):
+                malicious_count += 1
+            else:
+                non_malicious_count += 1
+        except json.JSONDecodeError as e:
+            logger.error(f"Error parsing stats for ScanLog ID={log.id}: {str(e)}")
+            continue
+
+    policies = {
+        'categories': ['Malware', 'Phishing', 'Suspicious'],
+        'extensions': '.exe,.dll,.pdf,.txt,.docx,.eml',
+        'keywords': 'malware, virus, trojan'
+    }
+    messages = [
+        {'id': 1, 'message': 'Sample message', 'timestamp': '2025-08-06 19:00:00'}
+    ]
+
+    context = {
+        'logs': logs,
+        'malicious_count': malicious_count,
+        'non_malicious_count': non_malicious_count,
+        'policies': policies,
+        'messages': messages
+    }
+    return render(request, 'app/file_integrity_checker.html', context)
+
+def get_logs(request):
+    if request.user.is_authenticated:
+        logs = ScanLog.objects.filter(user=request.user)
+    else:
+        session_key = request.session.session_key
+        if not session_key:
+            request.session.save()
+            session_key = request.session.session_key
+        logs = ScanLog.objects.filter(session_key=session_key)
+
+    logs = logs.order_by('-created_at')
+    logs_data = []
+
+    for log in logs:
+        try:
+            stats = json.loads(log.stats) if isinstance(log.stats, str) else log.stats
+            stats.setdefault('size', 'Unknown')
+            stats.setdefault('type', 'Unknown')
+            stats.setdefault('malware_status', 'Unknown')
+            stats.setdefault('malware_details', {})
+        except json.JSONDecodeError as e:
+            print(f"Error parsing stats for ScanLog ID={log.id}: {str(e)}")
+            stats = {'size': 'Unknown', 'type': 'Unknown', 'malware_status': 'Unknown', 'malware_details': {}}
+
+        logs_data.append({
+            'filename': log.filename,
+            'status': log.status,
+            'stats': stats,
+            'created_at': log.created_at.isoformat(),
+            'user__username': log.user.username if log.user else "Anonymous"
+        })
+
+    return JsonResponse({'logs': logs_data}, safe=False)
+
+def get_collaboration(request):
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        messages = CollaborationMessage.objects.all().order_by('-timestamp').values('id', 'message', 'timestamp')
+        messages = [
+            {
+                'id': msg['id'],
+                'message': msg['message'],
+                'timestamp': msg['timestamp'].isoformat()
+            }
+            for msg in messages
+        ]
+        return JsonResponse({'messages': messages})
+    return JsonResponse({'error': 'Invalid request'}, status=400)
+
+def get_policies(request):
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        policies = {
+            'categories': list(Policy.objects.values_list('category', flat=True)),
+            'extensions': Policy.objects.first().extensions if Policy.objects.exists() else '.exe,.dll,.pdf,.txt,.docx,.eml',
+            'keywords': '\n'.join(['order', 'document', 'urgent', 'login', 'password', 'account', 'free', 'offer', 'discount'])
+        }
+        try:
+            with open(KEYWORDS_FILE, 'r') as f:
+                policies['keywords'] = f.read()
+        except:
+            pass
+        return JsonResponse({'policies': policies})
+    return JsonResponse({'error': 'Invalid request'}, status=400)
+
 def upload_files(request):
-    if request.method == 'POST':
-        uploaded_files = request.FILES.getlist('files')
-        results = []
-        scanner = AttachmentScanner(API_KEY)
-        for uploaded_file in uploaded_files:
-            if not uploaded_file.name.endswith(('.exe', '.dll', '.pdf', '.txt', '.docx', '.eml')):
-                results.append({'filename': uploaded_file.name, 'error': 'Unsupported file type'})
+    if request.method != 'POST':
+        return JsonResponse({"error": "Only POST allowed"}, status=405)
+
+    uploaded_files = request.FILES.getlist('files')
+    results = []
+    scanner = AttachmentScanner(API_KEY)
+    
+    # Ensure session_key exists for unauthenticated users
+    session_key = request.session.session_key
+    if not request.session.session_key:
+        request.session.save()  # ensures session exists
+        session_key = request.session.session_key
+
+
+    for uploaded_file in uploaded_files:
+        if not uploaded_file.name.endswith(('.exe', '.dll', '.pdf', '.txt', '.docx', '.eml')):
+            results.append({'filename': uploaded_file.name, 'error': 'Unsupported file type'})
+            continue
+
+        safe_filename = re.sub(r'[^\w.-]', '_', uploaded_file.name)
+        file_path = os.path.join(UPLOAD_DIR, safe_filename)
+        
+        try:
+            with open(file_path, 'wb+') as dest:
+                for chunk in uploaded_file.chunks():
+                    dest.write(chunk)
+            
+            stats, detailed = analyze_file(file_path)
+            stats = stats or {}
+            stats.setdefault('size', 0)
+            stats.setdefault('type', uploaded_file.name.split('.')[-1].lower())
+            scan_results, scan_summary = scanner.scan([file_path])
+            malware_info = scan_results.get(safe_filename, None)
+            if malware_info:
+                stats['malware_status'] = f"Malicious: flagged by {malware_info['malicious_count']} vendors"
+                stats['malware_details'] = {
+                    vendor: result for vendor, result in malware_info['analysis_results'].items() if result['category'] == 'malicious'
+                }
+            else:
+                stats['malware_status'] = "No malicious content detected"
+                stats['malware_details'] = {}
+
+            df = pd.DataFrame([stats])
+            excel_filename = f"{safe_filename}.xlsx"
+            excel_path = os.path.join(REPORT_DIR, excel_filename)
+            df.to_excel(excel_path, index=False)
+            
+            try:
+                with transaction.atomic():
+                    stats_serialized = json.dumps(stats) if isinstance(ScanLog._meta.get_field('stats'), models.TextField) else stats
+                    scan_log = ScanLog.objects.create(
+                        filename=uploaded_file.name,
+                        status='Scanned',
+                        stats=stats_serialized,
+                        user=request.user if request.user.is_authenticated else None,
+                        session_key=session_key if not request.user.is_authenticated else None
+                    )
+                    user_str = request.user.username if request.user.is_authenticated else 'Anonymous'
+                    logger.debug(f"Saved ScanLog: ID={scan_log.id}, Filename={scan_log.filename}, User={user_str}")
+            except Exception as db_error:
+                logger.error(f"Error saving to ScanLog for {uploaded_file.name}: {str(db_error)}")
+                results.append({'filename': uploaded_file.name, 'error': f"Database error: {str(db_error)}"})
                 continue
 
-            safe_filename = re.sub(r'[^\w.-]', '_', uploaded_file.name)
-            file_path = os.path.join(UPLOAD_DIR, safe_filename)
-            try:
-                # Save the file
-                with open(file_path, 'wb+') as dest:
-                    for chunk in uploaded_file.chunks():
-                        dest.write(chunk)
-                
-                # Basic file analysis
-                stats, detailed = analyze_file(file_path)
-                
-                # Malware scan
-                scan_results, scan_summary = scanner.scan([file_path])
-                malware_info = scan_results.get(safe_filename, None)
-                if malware_info:
-                    stats['malware_status'] = f"Malicious: flagged by {malware_info['malicious_count']} vendors"
-                    stats['malware_details'] = {
-                        vendor: result for vendor, result in malware_info['analysis_results'].items() if result['category'] == 'malicious'
-                    }
-                else:
-                    stats['malware_status'] = "No malicious content detected"
-                    stats['malware_details'] = {}
+            results.append({
+                'filename': uploaded_file.name,
+                'stats': stats,
+                'detailed': detailed,
+                'excel_path': f"{settings.MEDIA_URL}reports/{excel_filename}"
+            })
+        except Exception as e:
+            logger.error(f"Error processing {uploaded_file.name}: {str(e)}")
+            results.append({'filename': uploaded_file.name, 'error': str(e)})
+    
+    logger.debug(f"Upload results: {results}")
+    return JsonResponse({'success': True, 'results': results}, safe=False)
 
-                # Generate Excel report
-                df = pd.DataFrame([stats])
-                excel_filename = f"{safe_filename}.xlsx"
-                excel_path = os.path.join(REPORT_DIR, excel_filename)
-                df.to_excel(excel_path, index=False)
-                
-                # Log to database
-                ScanLog.objects.create(filename=uploaded_file.name, status='Scanned', stats=stats)
-                results.append({
-                    'filename': uploaded_file.name,
-                    'stats': stats,
-                    'detailed': detailed,
-                    'excel_path': f"{settings.MEDIA_URL}reports/{excel_filename}"
-                })
-            except Exception as e:
-                results.append({'filename': uploaded_file.name, 'error': str(e)})
-        
-        return JsonResponse(results, safe=False)
-    return JsonResponse({"error": "Only POST allowed"}, status=405)
+@csrf_exempt
+def edit_message(request, message_id):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            message = get_object_or_404(CollaborationMessage, id=message_id)
+            message.message = data.get('message', message.message)
+            message.timestamp = datetime.now()
+            message.save()
+            return JsonResponse({'success': True})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    return JsonResponse({'success': False, 'error': 'Invalid request'})
 
-# Other views (unchanged)
+def delete_message(request, message_id):
+    if request.method == 'POST':
+        try:
+            message = get_object_or_404(CollaborationMessage, id=message_id)
+            message.delete()
+            messages.success(request, "Message deleted.")
+            return redirect('file_integrity_checker')
+        except Exception as e:
+            messages.error(request, f"Error deleting message: {str(e)}")
+    return redirect('file_integrity_checker')
+
+def policies(request):
+    if request.method == 'POST':
+        categories = request.POST.getlist('categories')
+        extensions = request.POST.get('extensions', '.exe,.dll,.pdf,.txt,.docx,.eml')
+        keywords = request.POST.get('keywords', '')
+        Policy.objects.all().delete()
+        for category in categories:
+            Policy.objects.create(category=category, extensions=extensions)
+        with open(KEYWORDS_FILE, 'w') as f:
+            f.write(keywords)
+        messages.success(request, "Policies updated.")
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': True})
+        return redirect('file_integrity_checker')
+    return redirect('file_integrity_checker')
+
 def home(request):
     return render(request, 'app/index.html', {
         'title': 'Home Page',
@@ -388,6 +683,8 @@ def about(request):
         'year': datetime.now().year,
     })
 
+
+
 def email_analyzer(request):
     return render(request, 'app/email_analyzer.html')
 
@@ -395,12 +692,14 @@ def scan_single_email(request):
     if request.method == 'POST':
         email_file = request.FILES.get('email_file')
         if not email_file:
-            messages.error(request, "No file uploaded.")
-            return redirect('email_analyzer')
+            return render(request, 'app/email_scan_results.html', {
+                'error': "No file uploaded."
+            })
         
         if not email_file.name.endswith('.eml'):
-            messages.error(request, "Invalid file type, only .eml allowed.")
-            return redirect('email_analyzer')
+            return render(request, 'app/email_scan_results.html', {
+                'error': "Invalid file type, only .eml allowed."
+            })
 
         try:
             email_content = email_file.read()
@@ -422,12 +721,20 @@ def scan_single_email(request):
             analyzer.analyze_email(filepath)
             analyzer.save_results_to_file("scan_results.txt")
             
+            results = analyzer.get_results(email_file.name)
             ScanLog.objects.create(filename=email_file.name, status='Scanned', stats=stats)
-            messages.success(request, "Done scanning. You may download the report below.")
-            return redirect('email_analyzer')
+            messages.success(request, "Email scan completed.")
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': True, 'results': [results]})
+            return render(request, 'app/email_scan_results.html', {
+                'results': [results]
+            })
         except Exception as e:
-            messages.error(request, f"Error scanning email: {str(e)}")
-            return redirect('email_analyzer')
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'error': f"Error scanning email: {str(e)}"})
+            return render(request, 'app/email_scan_results.html', {
+                'error': f"Error scanning email: {str(e)}"
+            })
     
     return redirect('email_analyzer')
 
@@ -435,10 +742,13 @@ def scan_batch_emails(request):
     if request.method == 'POST':
         email_files = request.FILES.getlist('email_files')
         if not email_files:
-            messages.error(request, "No files uploaded.")
-            return redirect('email_analyzer')
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'error': "No files uploaded."})
+            return render(request, 'app/email_scan_results.html', {
+                'error': "No files uploaded."
+            })
 
-        report = ""
+        results = []
         for email_file in email_files:
             if not email_file.name.endswith('.eml'):
                 messages.error(request, f"Invalid file type: {email_file.name}")
@@ -466,19 +776,48 @@ def scan_batch_emails(request):
                 temp_report_path = os.path.join(temp_dir, 'temp_result.txt')
                 analyzer.save_results_to_file(temp_report_path)
                 
-                with open(temp_report_path, 'r', encoding='utf-8') as f:
-                    report += f"Results for {email_file.name}:\n{f.read()}\n{'=' * 80}\n"
-                
                 ScanLog.objects.create(filename=email_file.name, status='Scanned', stats=stats)
+                results.append(analyzer.get_results(email_file.name))
             except Exception as e:
                 messages.error(request, f"Error scanning email {email_file.name}: {str(e)}")
         
         report_path = os.path.join(REPORT_DIR, 'scan_results.txt')
         with open(report_path, 'w', encoding='utf-8') as f:
-            f.write(report)
+            for result in results:
+                f.write(f"Results for {result['filename']}:\n")
+                f.write("From: " + result['header_analysis'].get("From", "") + "\n")
+                f.write("Reply-To: " + result['header_analysis'].get("Reply-To", "") + "\n")
+                f.write("Return-Path: " + result['header_analysis'].get("Return-Path", "") + "\n")
+                f.write("Authentication-Results: " + result['header_analysis'].get("Authentication_Results", "") + "\n")
+                f.write("Header Flags: \n")
+                for flag in result['header_analysis'].get("Flags", []):
+                    f.write("- " + flag + "\n")
+                f.write("\nSafe Links:\n")
+                for link in result['safe_links']:
+                    f.write("[✔] " + link + "\n")
+                f.write("\nMalicious Links:\n")
+                for link, count in result['malicious_links'].items():
+                    f.write(f"[⚠️] {link} - flagged by {count} vendors\n")
+                f.write("\nSafe Attachments:\n")
+                for att in result['safe_attachments']:
+                    f.write("[✔] " + att + "\n")
+                f.write("\nMalicious Attachments:\n")
+                for att, count in result['malicious_attachments'].items():
+                    f.write(f"[⚠️] {att} - flagged by {count['malicious_count']} vendors\n")
+                f.write("\nKeywords Found:\n")
+                for level, words in result['keywords_found'].items():
+                    f.write(f"{level}: {', '.join(words) if words else 'None'}\n")
+                f.write("\nSecurity Recommendations:\n")
+                for rec in result['recommendations']:
+                    f.write(f"- {rec}\n")
+                f.write("\n" + "=" * 80 + "\n")
         
-        messages.success(request, "Batch scan complete. You may download the report below.")
-        return redirect('email_analyzer')
+        messages.success(request, "Batch scan complete.")
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': True, 'results': results})
+        return render(request, 'app/email_scan_results.html', {
+            'results': results
+        })
     
     return redirect('email_analyzer')
 
@@ -490,236 +829,250 @@ def download_report(request):
         messages.error(request, f"Error downloading report: {str(e)}")
         return redirect('email_analyzer')
 
-def file_integrity_checker(request):
-    return render(request, 'app/file_integrity_checker.html')
-
-def logs(request):
-    try:
-        logs = ScanLog.objects.all().order_by('-timestamp')[:10]
-        return render(request, 'app/partials/logs.html', {'logs': logs})
-    except Exception as e:
-        print(f"Error in logs view: {str(e)}")
-        return HttpResponse(f"Error: {str(e)}", status=500)
-
-def visualizations(request):
-    files = os.listdir(UPLOAD_DIR)
-    return render(request, 'app/partials/visualizations.html', {'files': files})
-
-def visualization_detail(request, index):
-    files = os.listdir(UPLOAD_DIR)
-    if index < len(files):
-        file_path = os.path.join(UPLOAD_DIR, files[index])
-        size = os.path.getsize(file_path)
-        stats = {'size': size, 'type': files[index].split('.')[-1]}
-        return JsonResponse({"stats": stats})
-    return JsonResponse({"error": "Index out of range"}, status=400)
-
-def collaboration(request):
-    if request.method == 'POST':
-        message = request.POST.get('message')
-        if message and len(message) >= 10:
-            CollaborationMessage.objects.create(message=message)
-            return HttpResponse(status=204)
-        return JsonResponse({"message": "Message too short or not provided"}, status=400)
-    messages = CollaborationMessage.objects.all().order_by('-timestamp')[:10]
-    return render(request, 'app/partials/collaboration.html', {'messages': messages})
-
-def policies(request):
-    if request.method == 'POST':
-        selected = request.POST.keys()
-        Policy.objects.all().delete()
-        for category in ['Malicious', 'Suspicious', 'Harmless']:
-            if category in selected:
-                Policy.objects.create(category=category)
-        return HttpResponse(status=204)
-    policies = Policy.objects.values_list('category', flat=True)
-    return render(request, 'app/partials/policies.html', {'policies': policies})
-
 def website_checker(request):
     return render(request, 'app/website_checker.html')
+
+URL_REGEX = r'^(https?://)?([\w-]+\.)*[\w-]+\.[a-zA-Z]{2,}(/.*)?$'
+
+def clean_url(url):
+    if not url.startswith("http"):
+        url = "http://" + url
+    domain = url.split("//")[-1].split("/")[0]
+    return url, domain
 
 def check_availability(request):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
-            web = data.get('url')
-            if not web:
+            url = data.get('url')
+            if not url:
                 return JsonResponse({"result": "Error: No URL provided"}, status=400)
-            
-            web, domain = clean_url(web)
-            if not web or not domain:
-                return JsonResponse({"result": "Error: Invalid URL format"}, status=400)
-            
+
+            full_url, domain = clean_url(url)
+
+            # Verify domain resolves
             try:
                 socket.gethostbyname(domain)
             except socket.gaierror:
                 return JsonResponse({"result": f"Error: Could not resolve hostname {domain}"}, status=400)
-            
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
-            }
+
+            # Make GET request with timeout and simple user-agent
+            headers = {'User-Agent': 'Mozilla/5.0'}
             try:
-                response = requests.head(web, timeout=5, allow_redirects=True, headers=headers)
-                if response.status_code in [405, 403]:
-                    response = requests.get(web, timeout=5, allow_redirects=True, headers=headers)
-                status_text = f"Status: {response.status_code} ({'Available' if response.status_code == 200 else 'Not Available'})"
-                return JsonResponse({"result": status_text})
+                response = requests.get(full_url, headers=headers, timeout=5)
+                status = response.status_code
+                if status == 200:
+                    message = f"Website is available (Status Code: {status})"
+                else:
+                    message = f"Website returned status code {status}"
+                return JsonResponse({"result": message})
             except requests.exceptions.RequestException as e:
-                return JsonResponse({"result": f"Error: Invalid URL or Unreachable - {str(e)}"}, status=400)
+                return JsonResponse({"result": f"Error: Unable to reach website - {str(e)}"}, status=400)
         except Exception as e:
-            return JsonResponse({"result": f"Error: Unexpected issue - {str(e)}"}, status=500)
+            return JsonResponse({"result": f"Unexpected error: {str(e)}"}, status=500)
+
     return JsonResponse({"result": "Invalid request"}, status=400)
 
 def homepage_test(request):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
-            target = data.get('url')
-            target, domain = clean_url(target)
-            if not target or not domain:
-                return JsonResponse({"result": "Error: Invalid URL format"}, status=400)
-            
+            target, domain = clean_url(data.get('url'))
             headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                'User-Agent': 'Mozilla/5.0'
             }
-            response = urllib.request.Request(target, headers=headers)
-            with urllib.request.urlopen(response, timeout=10) as resp:
+            import urllib.request
+            req = urllib.request.Request(target, headers=headers)
+            with urllib.request.urlopen(req, timeout=10) as resp:
                 status_code = resp.getcode()
                 content_length = resp.getheader('Content-Length', 'Unknown')
                 server = resp.getheader('Server', 'Unknown')
                 ip = socket.gethostbyname(domain)
-                result_text_content = (
+                result_text = (
                     f"Homepage Test Results:\n"
                     f"Status: {'Available' if status_code == 200 else 'Not Available'} (Code: {status_code})\n"
                     f"IP Address: {ip}\n"
                     f"Server: {server}\n"
                     f"Content Length: {content_length} bytes"
                 )
-            return JsonResponse({"result": result_text_content})
+            return JsonResponse({"result": result_text})
         except Exception as e:
-            return JsonResponse({"result": f"Homepage Test Failed: Invalid URL or Unreachable - {str(e)}"}, status=400)
+            return JsonResponse({"result": f"Homepage Test Failed: {str(e)}"}, status=400)
     return JsonResponse({"result": "Invalid request"}, status=400)
 
 def ping_test(request):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
-            domain = clean_url(data.get('url'))[1]
-            if not domain:
-                return JsonResponse({"result": "Error: Invalid URL format"}, status=400)
-            
+            _, domain = clean_url(data.get('url'))
             ip = socket.gethostbyname(domain)
-            ping_cmd = ["ping", "-n" if platform.system() == 'Windows' else "-c", "4", domain]
-            result = subprocess.run(ping_cmd, capture_output=True, text=True, timeout=30)
-            if result.returncode == 0:
-                output_lines = result.stdout.strip().split('\n')
-                formatted_output = f"PING {domain} ({ip}) 56(84) bytes of data.\n"
-                response_count = 0
-                for line in output_lines:
-                    if response_count < 4:
-                        match = re.search(r'(\d+) bytes from ([\w.-]+) \(([\d.]+)\): icmp_seq=(\d+) ttl=(\d+) time=([\d.]+) ms', line)
-                        if match:
-                            bytes_sent, hostname, ip_addr, seq, ttl, time = match.groups()
-                            formatted_output += f"{bytes_sent} bytes from {hostname} ({ip_addr}): icmp_seq={seq} ttl={ttl} time={time} ms\n"
-                            response_count += 1
-                stats_match = re.search(r'(\d+) packets transmitted, (\d+) received, (\d+)% packet loss(?:, time (\d+)ms)?', result.stdout)
-                if stats_match:
-                    transmitted, received, loss, *time_parts = stats_match.groups()
-                    total_time = time_parts[0] if time_parts and time_parts[0] else "N/A"
-                    formatted_output += f"\n--- {domain} ping statistics ---\n"
-                    formatted_output += f"{transmitted} packets transmitted, {received} received, {loss}% packet loss, time {total_time}ms\n"
-                return JsonResponse({"result": formatted_output})
+            cmd = ["ping", "-n" if platform.system() == 'Windows' else "-c", "4", domain]
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=20)
+            if proc.returncode == 0:
+                return JsonResponse({"result": proc.stdout})
             else:
-                return JsonResponse({"result": f"Ping Failed: Host {domain} is unreachable or invalid\n{result.stderr.strip()}"})
-        except socket.gaierror as e:
-            return JsonResponse({"result": f"Ping Failed: Could not resolve hostname {domain} - {str(e)}"})
-        except subprocess.TimeoutExpired:
-            return JsonResponse({"result": f"Ping Timed Out while pinging {domain}"})
+                return JsonResponse({"result": f"Ping failed:\n{proc.stderr}"})
         except Exception as e:
-            return JsonResponse({"result": f"Ping Failed: Error - {str(e)}"})
+            return JsonResponse({"result": f"Ping test error: {str(e)}"}, status=400)
     return JsonResponse({"result": "Invalid request"}, status=400)
 
 def traceroute_test(request):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
-            domain = clean_url(data.get('url'))[1]
-            if not domain:
-                return JsonResponse({"result": "Error: Invalid URL format"}, status=400)
-            
-            ip = socket.gethostbyname(domain)
-            trace_cmd = ["tracert", "-d", domain] if platform.system() == 'Windows' else ["traceroute", "-n", domain]
-            result = subprocess.run(trace_cmd, capture_output=True, text=True, timeout=60)
-            if result.returncode == 0:
-                lines = result.stdout.strip().split('\n')
-                formatted_output = f"Traceroute to {domain} ({ip}):\n"
-                for i, line in enumerate(lines[:5]):
-                    formatted_output += line + "\n"
-                return JsonResponse({"result": formatted_output})
+            _, domain = clean_url(data.get('url'))
+            cmd = ["tracert", "-d", domain] if platform.system() == 'Windows' else ["traceroute", "-n", domain]
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+            if proc.returncode == 0:
+                return JsonResponse({"result": proc.stdout})
             else:
-                return JsonResponse({"result": f"Traceroute Failed:\n{result.stderr.strip()}"})
-        except socket.gaierror:
-            return JsonResponse({"result": f"Traceroute Error: Could not resolve hostname {domain}"})
-        except subprocess.TimeoutExpired:
-            return JsonResponse({"result": f"Traceroute Timed Out for {domain}"})
+                return JsonResponse({"result": f"Traceroute failed:\n{proc.stderr}"})
         except Exception as e:
-            return JsonResponse({"result": f"Traceroute Error: {str(e)}"})
+            return JsonResponse({"result": f"Traceroute test error: {str(e)}"}, status=400)
     return JsonResponse({"result": "Invalid request"}, status=400)
 
 def dns_check(request):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
-            domain = clean_url(data.get('url'))[1]
-            if not domain:
-                return JsonResponse({"result": "Error: Invalid URL format"}, status=400)
-            
-            security_info = f"DNS Security Check for {domain}:\n"
+            _, domain = clean_url(data.get('url'))
             resolver = dns.resolver.Resolver()
+
+            spf_txt = "SPF record not found"
             try:
-                spf_records = resolver.resolve(domain, 'TXT')
-                spf_found = False
-                for record in spf_records:
-                    if "spf" in record.strings[0].decode().lower():
-                        security_info += f"- SPF Record: Found\n  Value: {record.strings[0].decode()}\n"
-                        spf_found = True
+                answers = resolver.resolve(domain, 'TXT')
+                for rdata in answers:
+                    txt = rdata.strings[0].decode()
+                    if "spf" in txt.lower():
+                        spf_txt = f"SPF record found: {txt}"
                         break
-                if not spf_found:
-                    security_info += "- SPF Record: Not Found (Potential email spoofing risk)\n"
-            except dns.resolver.NoAnswer:
-                security_info += "- SPF Record: Not Found\n"
-            except dns.resolver.NXDOMAIN:
-                security_info += "- SPF Record: Not Found (Domain does not exist)\n"
-            
+            except Exception:
+                pass
+
+            dmarc_txt = "DMARC record not found"
             try:
-                dmarc_records = resolver.resolve('_dmarc.' + domain, 'TXT')
-                dmarc_found = False
-                for record in dmarc_records:
-                    if "dmarc" in record.strings[0].decode().lower():
-                        security_info += f"- DMARC Record: Found\n  Value: {record.strings[0].decode()}\n"
-                        dmarc_found = True
+                answers = resolver.resolve('_dmarc.' + domain, 'TXT')
+                for rdata in answers:
+                    txt = rdata.strings[0].decode()
+                    if "dmarc" in txt.lower():
+                        dmarc_txt = f"DMARC record found: {txt}"
                         break
-                if not dmarc_found:
-                    security_info += "- DMARC Record: Not Found (Increased risk of email spoofing)\n"
-            except dns.resolver.NoAnswer:
-                security_info += "- DMARC Record: Not Found\n"
-            except dns.resolver.NXDOMAIN:
-                security_info += "- DMARC Record: Not Found (Domain does not exist)\n"
-            
+            except Exception:
+                pass
+
+            ns_txt = ""
             try:
-                answers = dns.resolver.resolve(domain, 'NS')
-                security_info += "\nNS Records:\n" + "\n".join([str(r) for r in answers])
-            except dns.resolver.NXDOMAIN:
-                security_info += "\nNS Records: Not Found (Domain does not exist)\n"
-            
-            return JsonResponse({"result": security_info})
+                answers = resolver.resolve(domain, 'NS')
+                ns_txt = "NS records:\n" + "\n".join(str(r) for r in answers)
+            except Exception:
+                ns_txt = "No NS records found"
+
+            result = f"DNS Security Check for {domain}:\n{spf_txt}\n{dmarc_txt}\n{ns_txt}"
+            return JsonResponse({"result": result})
         except Exception as e:
-            return JsonResponse({"result": f"Error during DNS Security Check: {str(e)}"})
+            return JsonResponse({"result": f"DNS check error: {str(e)}"}, status=400)
     return JsonResponse({"result": "Invalid request"}, status=400)
 
-def login(request):
-    return render(request, 'app/login.html', {
-        'title': 'Login',
-        'year': datetime.now().year,
-    })
+def download_logs(request):
+    try:
+        logger.debug("Starting download_logs view")
+        if request.user.is_authenticated:
+            logs = ScanLog.objects.filter(user=request.user)
+        else:
+            session_key = request.session.session_key
+            if not session_key:
+                request.session.create()
+                session_key = request.session.session_key
+            logs = ScanLog.objects.filter(session_key=session_key, user__isnull=True)
+        
+        logger.debug(f"Retrieved {logs.count()} logs for user {request.user.username if request.user.is_authenticated else 'Anonymous'}")
+        
+        output = StringIO()
+        writer = csv.writer(output)
+        writer.writerow(['Filename', 'Status', 'Size', 'Type', 'Malware Status', 'Malware Details', 'Created At', 'User'])
+        
+        for log in logs:
+            try:
+                stats = json.loads(log.stats) if isinstance(log.stats, str) else log.stats
+                malware_details = json.dumps(stats.get('malware_details', {}))
+                user_str = log.user.username if log.user else 'Anonymous'
+                writer.writerow([
+                    log.filename,
+                    log.status,
+                    stats.get('size', 'Unknown'),
+                    stats.get('type', 'Unknown'),
+                    stats.get('malware_status', 'Unknown'),
+                    malware_details,
+                    log.created_at.isoformat(),
+                    user_str
+                ])
+                logger.debug(f"Processed log for {log.filename}")
+            except json.JSONDecodeError as e:
+                logger.error(f"Error parsing stats for ScanLog ID={log.id}: {str(e)}")
+                writer.writerow([
+                    log.filename,
+                    log.status,
+                    'Unknown',
+                    'Unknown',
+                    'Unknown',
+                    '{}',
+                    log.created_at.isoformat(),
+                    log.user.username if log.user else 'Anonymous'
+                ])
+            except Exception as e:
+                logger.error(f"Unexpected error processing log ID={log.id}: {str(e)}")
+                continue
+        
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="scan_logs.csv"'
+        response.write(output.getvalue())
+        output.close()
+        logger.debug("CSV generated and response prepared")
+        return response
+    except Exception as e:
+        logger.error(f"Error in download_logs: {str(e)}")
+        return JsonResponse({'error': f"Failed to download logs: {str(e)}"}, status=500)
+
+def download_website_results(request):
+    if request.method != 'POST':
+        return HttpResponse('Only POST allowed', status=405)
+    
+    try:
+        logger.debug("Starting download_website_results view")
+        data = json.loads(request.body)
+        logger.debug(f"Received data: {data}")
+        output = StringIO()
+        writer = csv.writer(output)
+        writer.writerow(['URL', 'Availability', 'Homepage Test', 'Ping Test', 'Traceroute Test', 'DNS Check'])
+        writer.writerow([
+            data.get('url', 'N/A'),
+            data.get('availability', 'N/A'),
+            data.get('homepage', 'N/A'),
+            data.get('ping', 'N/A'),
+            data.get('traceroute', 'N/A'),
+            data.get('dns', 'N/A')
+        ])
+        
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="website_results_{data.get("url", "results").replace("/", "_")}_{datetime.now().strftime("%Y-%m-%d")}.csv"'
+        response.write(output.getvalue())
+        output.close()
+        logger.debug("Website results CSV generated and response prepared")
+        return response
+    except Exception as e:
+        logger.error(f"Error in download_website_results: {str(e)}")
+        return HttpResponse(f'Error: {str(e)}', status=500)
+
+def collaboration(request):
+    if request.method == 'POST':
+        message = request.POST.get('message')
+        if message:
+            CollaborationMessage.objects.create(message=message, timestamp=datetime.now())
+            messages.success(request, "Message posted.")
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': True})
+        else:
+            messages.error(request, "Message cannot be empty.")
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'error': 'Message cannot be empty.'})
+    return redirect('file_integrity_checker')

@@ -1,0 +1,17 @@
+.text-green-600 {
+    color: #28a745;
+}
+
+.text-red-600 {
+    color: #dc3545;
+}
+
+.hidden {
+    display: none;
+}
+
+.nav-link.active {
+    background-color: #e3f2fd;
+    color: #2563eb;
+    border-bottom: 2px solid #2563eb;
+}

@@ -1,12 +1,12 @@
-[High Risk]
-urgent
-account suspended
-verify now
-[Medium Risk]
-login
-password
-update
-[Low Risk]
-free
-offer
+[High Risk]
+order
+document
+urgent
+[Medium Risk]
+login
+password
+account
+[Low Risk]
+free
+offer
 discount

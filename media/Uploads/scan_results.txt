@@ -1,0 +1,26 @@
+From: Cineplex <onlineticketing@cineplex.com>
+Reply-To: no-reply-ticketing@cineplex.com
+Return-Path: <bounces+1029250-dc11-gccacarlo.19=gmail.com@em9549.cineplex.com>
+Authentication-Results: mx.google.com;       dkim=pass header.i=@cineplex.com header.s=s1 header.b=cFE6Wgz+;       dkim=pass header.i=@sendgrid.info header.s=smtpapi header.b=BnZ+3SvU;       spf=pass (google.com: domain of bounces+1029250-dc11-gccacarlo.19=gmail.com@em9549.cineplex.com designates 167.89.80.104 as permitted sender) smtp.mailfrom="bounces+1029250-dc11-gccacarlo.19=gmail.com@em9549.cineplex.com";       dmarc=pass (p=REJECT sp=NONE dis=NONE) header.from=cineplex.com
+Header Flags: 
+- ⚠️ From and Return-Path mismatch
+- ⚠️ Reply-To differs from From
+
+Safe Links:
+[✔] https://cineplex.service-now.com/gsc?id=cpx_gsc_contact_us
+
+Malicious Links:
+
+Safe Attachments:
+[✔] eTickets.pdf
+
+Malicious Attachments:
+
+Keywords Found:
+High Risk: order
+Medium Risk: None
+Low Risk: free
+
+Security Recommendations:
+- This email contains high-risk keywords (e.g., 'order', 'document'). Be cautious — do NOT click links or download attachments unless verified.
+- Low-risk marketing terms found (e.g., 'free', 'offer'). Watch out for scams or clickbait. Avoid impulsive actions.
